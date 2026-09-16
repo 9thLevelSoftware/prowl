@@ -49,9 +49,16 @@ export default function Dashboard() {
     .from(s.applicationEvents)
     .innerJoin(s.applications, eq(s.applications.id, s.applicationEvents.applicationId))
     .innerJoin(s.jobs, eq(s.jobs.id, s.applications.jobId))
-    .where(and(eq(s.applicationEvents.userId, USER), sql`${s.applicationEvents.type} not like 'screenshot:%' and ${s.applicationEvents.type} != 'apply:log'`))
+    .where(
+      and(
+        eq(s.applicationEvents.userId, USER),
+        sql`${s.applicationEvents.type} not like 'screenshot:%' and ${s.applicationEvents.type} != 'apply:log'`,
+        // Latest event per application only, so one busy application doesn't fill the list.
+        sql`${s.applicationEvents.id} = (select e2.id from application_events e2 where e2.application_id = ${s.applicationEvents.applicationId} and e2.type not like 'screenshot:%' and e2.type != 'apply:log' order by e2.at desc, e2.rowid desc limit 1)`,
+      ),
+    )
     .orderBy(desc(s.applicationEvents.at))
-    .limit(12)
+    .limit(10)
     .all();
 
   const funnel = [

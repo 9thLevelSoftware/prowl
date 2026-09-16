@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 import path from "node:path";
+import { loadEnvConfig } from "@next/env";
+
+// One .env at the repository root serves both the web app and the worker.
+loadEnvConfig(path.join(process.cwd(), "../.."));
 
 const config: NextConfig = {
   // Workspace packages ship TypeScript source.

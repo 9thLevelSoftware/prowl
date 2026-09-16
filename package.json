@@ -4,9 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@9.15.9",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "pnpm db:migrate && pnpm -r --parallel --filter ./apps/** dev",
+    "dev": "pnpm db:migrate && pnpm --parallel --filter @jh/web --filter @jh/worker dev",
     "dev:web": "pnpm --filter @jh/web dev",
     "dev:worker": "pnpm --filter @jh/worker dev",
     "build": "pnpm --filter @jh/web build",
@@ -15,11 +17,18 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:golden": "vitest run --config vitest.golden.config.ts",
-    "lint": "eslint ."
+    "test:golden": "cross-env JH_GOLDEN=1 vitest run --config vitest.golden.config.ts",
+    "lint": "eslint .",
+    "seed:demo": "tsx --env-file-if-exists=.env scripts/seed-demo.ts",
+    "setup": "node scripts/setup.mjs"
   },
   "devDependencies": {
+    "@jh/core": "workspace:*",
+    "@jh/db": "workspace:*",
+    "@jh/documents": "workspace:*",
+    "@jh/shared": "workspace:*",
     "@types/node": "^24.0.0",
+    "cross-env": "^10.1.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"

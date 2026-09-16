@@ -45,9 +45,18 @@ export default function ProfilePage() {
                     <span className="tabular font-semibold">{facts.length}</span> facts from version {profile.version}
                   </p>
                   <ul className="mt-2 space-y-0.5 text-muted">
-                    {(["role", "bullet", "skill", "education", "certification", "project"] as const).map((k) => (
+                    {(
+                      [
+                        ["role", "Roles"],
+                        ["bullet", "Bullets"],
+                        ["skill", "Confirmed skills"],
+                        ["education", "Education"],
+                        ["certification", "Certifications"],
+                        ["project", "Projects"],
+                      ] as const
+                    ).map(([k, label]) => (
                       <li key={k} className="flex justify-between">
-                        <span className="capitalize">{k}s</span>
+                        <span>{label}</span>
                         <span className="tabular">{facts.filter((f) => f.kind === k).length}</span>
                       </li>
                     ))}

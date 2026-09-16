@@ -43,7 +43,10 @@ function degreeLine(e: ProfileData["education"][number]): string {
 /** Baseline resume straight from the profile. */
 export function resolveBaseline(p: ProfileData): ResolvedResume {
   const bySkillCat = new Map<string, string[]>();
-  for (const s of p.skills) {
+  // Once the user has confirmed any skills, the baseline shows only confirmed ones. That keeps it
+  // consistent with tailored output and makes before/after keyword coverage a fair comparison.
+  const skills = p.skills.some((s) => s.confirmed) ? p.skills.filter((s) => s.confirmed) : p.skills;
+  for (const s of skills) {
     const list = bySkillCat.get(s.category || "Skills") ?? [];
     list.push(s.name);
     bySkillCat.set(s.category || "Skills", list);

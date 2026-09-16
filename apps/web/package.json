@@ -34,7 +34,8 @@
     "mammoth": "^1.10.0",
     "docx": "^9.5.0",
     "cheerio": "^1.1.0",
-    "robots-parser": "^3.0.1"
+    "robots-parser": "^3.0.1",
+    "@next/env": "^15.5.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.0",
