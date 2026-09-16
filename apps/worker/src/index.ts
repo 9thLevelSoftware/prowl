@@ -17,7 +17,7 @@ import {
   type QueueTask,
 } from "@jh/db";
 import { getLlm } from "@jh/llm";
-import { LOCAL_USER_ID, WORKER_PORT, logger, sleep } from "@jh/shared";
+import { LOCAL_USER_ID, WORKER_PORT, dataDir, logger, sleep } from "@jh/shared";
 import { closeContext, openForLogin } from "@jh/browser";
 import { closeRenderer } from "@jh/documents";
 import { emit, subscribe } from "./events";
@@ -125,7 +125,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   try {
     if (req.method === "GET" && url.pathname === "/health") {
-      return json(res, 200, { ok: true, workerId: WORKER_ID, startedAt: STARTED, running: [...running.values()], queue: queueStats(db), provider: llm.config.provider, models: { main: llm.config.smartModel, mainEffort: llm.config.smartEffort, fast: llm.config.fastModel, fastEffort: llm.config.fastEffort } });
+      return json(res, 200, { ok: true, workerId: WORKER_ID, startedAt: STARTED, dataDir: dataDir(), running: [...running.values()], queue: queueStats(db), provider: llm.config.provider, models: { main: llm.config.smartModel, mainEffort: llm.config.smartEffort, fast: llm.config.fastModel, fastEffort: llm.config.fastEffort } });
     }
     if (req.method === "GET" && url.pathname === "/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive", "access-control-allow-origin": "*" });
@@ -165,12 +165,34 @@ const server = http.createServer(async (req, res) => {
 /* ================================ Start ================================ */
 
 async function main() {
+  // Only one worker may run per machine: it owns the control port and the browser profile.
+  await new Promise<void>((resolve) => {
+    server.once("error", async (err: NodeJS.ErrnoException) => {
+      if (err.code !== "EADDRINUSE") throw err;
+      const other = (await fetch(`http://127.0.0.1:${WORKER_PORT}/health`, { signal: AbortSignal.timeout(3000) })
+        .then((r) => r.json())
+        .catch(() => null)) as { workerId?: string; startedAt?: string; dataDir?: string } | null;
+      if (other?.workerId) {
+        log.error(
+          `Another Job Hunter worker is already running (${other.workerId}, started ${other.startedAt}, data: ${other.dataDir ?? "unknown"}). ` +
+            `Stop it first, or end the process: taskkill /F /T /PID ${other.workerId.split("-").pop()}`,
+        );
+      } else {
+        log.error(`Port ${WORKER_PORT} is used by another program. Free it or set JH_WORKER_PORT in .env.`);
+      }
+      process.exit(1);
+    });
+    server.listen(WORKER_PORT, "127.0.0.1", () => {
+      log.info(`Worker control API on http://127.0.0.1:${WORKER_PORT}`);
+      resolve();
+    });
+  });
+
+  // Safe only once this process is known to be the sole worker (checked by claiming the port above).
   const recovered = recoverStaleTasks(db, 0);
   if (recovered) log.warn(`Recovered ${recovered} task(s) left running by a previous worker`);
   // Applications interrupted mid-apply go back to approved so they are retried.
   db.update(s.applications).set({ status: "approved" }).where(eq(s.applications.status, "applying")).run();
-
-  server.listen(WORKER_PORT, "127.0.0.1", () => log.info(`Worker control API on http://127.0.0.1:${WORKER_PORT}`));
   scheduleDiscovery();
   const heartbeat = setInterval(() => beat(db, WORKER_ID, STARTED, [...running.values()].join(", ") || null), 5000);
   beat(db, WORKER_ID, STARTED, null);
