@@ -215,7 +215,13 @@ export function ConnectionDetail({ conn, isActive, onRemoved }: { conn: LlmConne
               <RefreshCw className="size-3.5" /> Refresh models
             </Button>
           </div>
-          {conn.modelsError ? <Notice tone="warn">Couldn't load the live model list: {conn.modelsError}</Notice> : null}
+          {conn.modelsError ? (
+            <Notice tone="warn" title={models.length ? "Showing models from the public catalog" : "No models available"}>
+              {models.length
+                ? `The provider's own model list couldn't be loaded, so these come from the models.dev catalog. Some may not be available to this account. Reason: ${conn.modelsError}`
+                : `The provider's model list couldn't be loaded. Reason: ${conn.modelsError}`}
+            </Notice>
+          ) : null}
           <SlotPicker key={`${conn.id}-main`} conn={conn} slot="main" models={models} effortByModel={effortByModel} onEffortMemory={(m, e) => setEffortByModel((x) => ({ ...x, [m]: e }))} />
           <SlotPicker key={`${conn.id}-fast`} conn={conn} slot="fast" models={models} effortByModel={effortByModel} onEffortMemory={(m, e) => setEffortByModel((x) => ({ ...x, [m]: e }))} />
           <p className="text-[12px] text-muted">Choices are saved to this connection. Switching away and back restores them.</p>

@@ -50,6 +50,9 @@ const server = http.createServer((req, res) => {
       return json(200, { access_token: jwt({ exp: Math.floor(Date.now() / 1000) + 3600, n: 2 }), refresh_token: `refresh-${refreshCount + 1}` });
     }
     if (url.pathname === "/codex/models") {
+      // Like the real backend: an outdated client_version only gets hidden internal models.
+      const hiddenOnly = [{ slug: "hidden-model", display_name: "Hidden", visibility: "hide", supported_reasoning_levels: [] }];
+      if (url.searchParams.get("client_version") !== "99.0.0") return json(200, { models: hiddenOnly });
       return json(200, {
         models: [
           { slug: "gpt-5.6-luna", display_name: "GPT-5.6 Luna", supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }, { effort: "high" }, { effort: "xhigh" }], default_reasoning_level: "medium" },
@@ -219,7 +222,7 @@ describe("ChatGPT sign-in", () => {
     expect(error).toBeNull();
     expect(models.map((m) => m.id)).toEqual(["gpt-5.6-luna"]);
     expect(models[0]).toMatchObject({ efforts: ["low", "medium", "high", "xhigh"], defaultEffort: "medium", source: "live" });
-    const modelsReq = captured.find((c) => c.path === "/codex/models")!;
+    const modelsReq = captured.filter((c) => c.path === "/codex/models").at(-1)!;
     expect(modelsReq.headers["chatgpt-account-id"]).toBe("acct_123");
 
     // Expired token triggers a refresh; refresh tokens rotate.

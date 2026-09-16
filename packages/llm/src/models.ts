@@ -53,14 +53,18 @@ async function fetchLive(db: Db, conn: LlmConnection): Promise<LiveModel[]> {
   switch (conn.sdk) {
     case "openai-chatgpt": {
       const token = await getAccessToken(db, conn.id);
-      const j = await getJson(`${base}/models?client_version=${encodeURIComponent(process.env.JH_CODEX_CLIENT_VERSION ?? "0.99.0")}`, {
-        authorization: `Bearer ${token}`,
-        ...(conn.accountId ? { "chatgpt-account-id": conn.accountId } : {}),
-        originator: "codex_cli_rs",
-      });
-      const list: any[] = j.models ?? j.data ?? [];
+      const headers = { authorization: `Bearer ${token}`, ...(conn.accountId ? { "chatgpt-account-id": conn.accountId } : {}), originator: "codex_cli_rs" };
+      // The backend gates the list by client version: an outdated version gets only hidden internal
+      // models. Try a recent Codex version first, then a far-future one, and keep the first
+      // response that has selectable models.
+      const versions = [process.env.JH_CODEX_CLIENT_VERSION, "0.154.0", "99.0.0"].filter((v): v is string => !!v);
+      let list: any[] = [];
+      for (const v of versions) {
+        const j = await getJson(`${base}/models?client_version=${encodeURIComponent(v)}`, headers);
+        list = (j.models ?? j.data ?? []).filter((m: any) => m.visibility !== "hide" && m.visibility !== "hidden");
+        if (list.length) break;
+      }
       return list
-        .filter((m) => m.visibility !== "hide" && m.visibility !== "hidden")
         .map((m) => ({
           id: m.slug ?? m.id,
           name: m.display_name ?? m.slug ?? m.id,
@@ -129,7 +133,7 @@ export function toModelInfo(conn: Pick<LlmConnection, "sdk" | "catalogProviderId
 function catalogModels(conn: LlmConnection): ModelInfo[] {
   const pid = conn.catalogProviderId ?? (conn.sdk === "openai-chatgpt" ? "openai" : null);
   const models = pid ? Object.values(getCatalog()[pid]?.models ?? {}) : [];
-  const filtered = conn.sdk === "openai-chatgpt" ? models.filter((m) => m.reasoning && /^gpt-/.test(m.id)) : models;
+  const filtered = (conn.sdk === "openai-chatgpt" ? models.filter((m) => m.reasoning && /^gpt-/.test(m.id)) : models).filter((m) => !NON_CHAT.test(m.id));
   return filtered.map((m) => toModelInfo(conn, { id: m.id, name: m.name, context: m.context }, "catalog"));
 }
 

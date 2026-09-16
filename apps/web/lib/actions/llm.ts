@@ -194,7 +194,8 @@ export async function refreshModelsAction(id: string): Promise<ActionResult> {
     if (!conn) throw new Error("Connection not found");
     const { models, error } = await refreshModels(db(), conn);
     refresh();
-    return error ? { ok: false, error: `Could not load the live model list: ${error}. Showing ${models.length} known models.` } : { ok: true, message: `${models.length} models` };
+    // A failed live list is explained by the notice above the pickers, so don't repeat it here.
+    return { ok: true, message: error ? undefined : `Loaded ${models.length} models` };
   } catch (err) {
     return fail(err);
   }
