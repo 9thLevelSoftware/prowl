@@ -4,6 +4,7 @@ import { getJson, politeFetch } from "./http";
 import { mapGreenhouseJob } from "./adapters/greenhouse";
 import { mapLeverPosting } from "./adapters/lever";
 import { mapAshbyJob } from "./adapters/ashby";
+import { ashbyApi, greenhouseApi, leverApi } from "./endpoints";
 
 const log = logger("resolve");
 
@@ -35,15 +36,15 @@ export async function fetchAtsJob(url: string, companyName?: string): Promise<Ra
   const d = detectAts(url);
   try {
     if (d.ats === "greenhouse" && d.board && d.jobId) {
-      const j = await getJson<any>(`https://boards-api.greenhouse.io/v1/boards/${d.board}/jobs/${d.jobId}`);
+      const j = await getJson<any>(`${greenhouseApi()}/boards/${d.board}/jobs/${d.jobId}`);
       return mapGreenhouseJob(j, { boardToken: d.board, companyName });
     }
     if (d.ats === "lever" && d.board && d.jobId) {
-      const p = await getJson<any>(`https://api.lever.co/v0/postings/${d.board}/${d.jobId}?mode=json`);
+      const p = await getJson<any>(`${leverApi()}/postings/${d.board}/${d.jobId}?mode=json`);
       return mapLeverPosting(p, { company: d.board, companyName });
     }
     if (d.ats === "ashby" && d.board && d.jobId) {
-      const data = await getJson<{ jobs: any[] }>(`https://api.ashbyhq.com/posting-api/job-board/${d.board}?includeCompensation=true`);
+      const data = await getJson<{ jobs: any[] }>(`${ashbyApi()}/job-board/${d.board}?includeCompensation=true`);
       const j = data.jobs.find((x) => x.id === d.jobId);
       return j ? mapAshbyJob(j, { org: d.board, companyName }) : null;
     }

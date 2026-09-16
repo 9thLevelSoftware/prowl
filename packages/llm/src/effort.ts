@@ -47,6 +47,11 @@ export const TASK_EFFORT: Record<string, EffortIntent> = {
   builder_summary: "medium",
   form_answers: "medium",
   cover_letter: "medium",
+  interview_analyze: "high",
+  interview_turn: "medium",
+  interview_summarize: "high",
+  source_suggest: "high",
+  source_search: "low",
   tailor: "high",
   audit: "high",
   audit_resume: "high",
@@ -67,6 +72,11 @@ export const TASK_LABELS: Record<string, string> = {
   builder_summary: "Drafting your summary",
   form_answers: "Drafting application answers",
   cover_letter: "Writing a cover letter",
+  interview_analyze: "Reviewing your resume for the interview",
+  interview_turn: "Thinking about your answer",
+  interview_summarize: "Summarizing your interview",
+  source_suggest: "Finding employers that fit you",
+  source_search: "Searching the web for job boards",
   tailor: "Tailoring a resume",
   audit: "Fact-checking",
   audit_resume: "Fact-checking a tailored resume",
@@ -81,6 +91,7 @@ export const WORKER_TASK_LABELS: Record<string, string> = {
   process_job: "Scoring jobs",
   tailor: "Tailoring an application",
   apply: "Filling out an application",
+  build_sources: "Finding job sources",
 };
 
 export function effortForTask(task: string): EffortIntent {

@@ -21,6 +21,7 @@ import { LOCAL_USER_ID, WORKER_PORT, dataDir, logger, sleep } from "@jh/shared";
 import { closeContext, openForLogin } from "@jh/browser";
 import { closeRenderer } from "@jh/documents";
 import { emit, subscribe } from "./events";
+import { handleBuildSources } from "./sources-task";
 import { RescheduleError, handleApply, handleDiscoverAll, handleDiscoverSource, handleProcessJob, handleTailor } from "./handlers";
 
 process.env.JH_PROCESS = "worker";
@@ -40,7 +41,7 @@ const running = new Map<string, string>();
  *  - llm lane (2 at a time): everything else
  */
 const BROWSER_TYPES = ["apply"];
-const LLM_TYPES = ["discover_all", "discover_source", "process_job", "tailor"];
+const LLM_TYPES = ["discover_all", "discover_source", "process_job", "tailor", "build_sources"];
 
 async function execute(task: QueueTask): Promise<void> {
   switch (task.type) {
@@ -54,6 +55,8 @@ async function execute(task: QueueTask): Promise<void> {
       return handleTailor(db, llm, task);
     case "apply":
       return handleApply(db, llm, task);
+    case "build_sources":
+      return handleBuildSources(db, llm, task);
     default:
       throw new Error(`Unknown task type ${task.type}`);
   }

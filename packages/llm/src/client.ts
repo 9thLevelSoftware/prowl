@@ -1,4 +1,5 @@
-import { generateObject, generateText, streamObject, streamText, type ModelMessage } from "ai";
+import { NoObjectGeneratedError, generateObject, generateText, streamObject, streamText, type ModelMessage } from "ai";
+import { openai as openaiProvider } from "@ai-sdk/openai";
 import type { z } from "zod";
 import { clearOrphanActivity, createConnection, endActivity, getDb, listConnections, schema, startActivity, updateConnection, type Db, type LlmConnection } from "@jh/db";
 import { LOCAL_USER_ID, logger } from "@jh/shared";
@@ -220,18 +221,30 @@ export class LlmClient {
           providerOptions: built.providerOptions,
           ...input,
         };
-        if (built.streaming) {
-          let streamError: unknown;
-          const res = streamObject({ ...(common as any), onError: ({ error }: { error: unknown }) => (streamError = error) });
-          const obj = await res.object.catch((e: unknown) => {
-            throw streamError ?? e;
-          });
-          this.record(ctx, built.conn, built, started, await res.usage.catch(() => undefined));
-          return obj as z.infer<S>;
+        const attempt = async () => {
+          if (built!.streaming) {
+            let streamError: unknown;
+            const res = streamObject({ ...(common as any), onError: ({ error }: { error: unknown }) => (streamError = error) });
+            const obj = await res.object.catch((e: unknown) => {
+              throw streamError ?? e;
+            });
+            return { object: obj, usage: await res.usage.catch(() => undefined) };
+          }
+          const res = await generateObject(common as any);
+          return { object: res.object, usage: res.usage };
+        };
+        let result;
+        try {
+          result = await attempt();
+        } catch (err) {
+          // The API retries cover transport failures only. A reply that doesn't match the schema
+          // (a missing field, a malformed value) is usually fixed by sampling once more.
+          if (!NoObjectGeneratedError.isInstance(err)) throw err;
+          log.warn(`${ctx.task}: the model's reply didn't match the expected format, retrying once (${err.cause instanceof Error ? err.cause.message.split("\n")[0] : err.message})`);
+          result = await attempt();
         }
-        const res = await generateObject(common as any);
-        this.record(ctx, built.conn, built, started, res.usage);
-        return res.object as z.infer<S>;
+        this.record(ctx, built.conn, built, started, result.usage);
+        return result.object as z.infer<S>;
       } catch (err) {
         this.record(ctx, built?.conn ?? this.runtime?.connection ?? null, built, started, undefined, err);
         throw err;
@@ -278,6 +291,51 @@ export class LlmClient {
     const res = await generateText(common as any);
     this.record(ctx, built.conn, built, started, res.usage);
     return res.text;
+  }
+
+  /** Whether the active connection offers a built-in web search tool on its fast model. */
+  canSearchWeb(): boolean {
+    this.reload();
+    const r = this.runtime;
+    if (!r || (r.connection.sdk !== "openai-chatgpt" && r.connection.sdk !== "openai")) return false;
+    // Model lists saved before search support was tracked have no flag. Both OpenAI backends support the tool for reasoning models.
+    const flag = r.fast.info?.webSearch;
+    return flag ?? (r.fast.info?.reasoning ?? true);
+  }
+
+  /**
+   * Run a prompt with the provider's built-in web search tool. Returns the answer text and every URL
+   * found in it or in its cited sources. Callers must verify URLs; search results are leads, not facts.
+   */
+  async searchWeb(ctx: CallContext, prompt: string): Promise<{ available: boolean; text: string; urls: string[] }> {
+    if (!this.canSearchWeb()) return { available: false, text: "", urls: [] };
+    return this.sem.run(async () => {
+      const started = Date.now();
+      let built: (BuiltModel & { conn: LlmConnection }) | null = null;
+      let activity: string | null = null;
+      try {
+        built = await this.model("fast", ctx.task);
+        activity = this.begin(ctx, built);
+        const res = await generateText({
+          model: built.model,
+          prompt,
+          tools: { web_search: openaiProvider.tools.webSearch({}) } as any,
+          providerOptions: built.providerOptions as any,
+          abortSignal: callSignal(ctx),
+          maxRetries: 2,
+        });
+        this.record(ctx, built.conn, built, started, res.usage);
+        const urls = new Set<string>();
+        for (const m of res.text.matchAll(/https?:\/\/[^\s)\]>"']+/g)) urls.add(m[0].replace(/[.,;:]+$/, ""));
+        for (const src of (res.sources ?? []) as { sourceType?: string; url?: string }[]) if (src.url) urls.add(src.url);
+        return { available: true, text: res.text, urls: [...urls] };
+      } catch (err) {
+        this.record(ctx, built?.conn ?? this.runtime?.connection ?? null, built, started, undefined, err);
+        throw err;
+      } finally {
+        this.end(activity);
+      }
+    });
   }
 
   /**

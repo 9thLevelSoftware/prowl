@@ -207,6 +207,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.7.0
         version: 3.8.1
+      '@jh/applier':
+        specifier: workspace:*
+        version: link:../applier
       '@jh/db':
         specifier: workspace:*
         version: link:../db

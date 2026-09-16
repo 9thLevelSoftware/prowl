@@ -1,6 +1,7 @@
 import { htmlToText, type RawJob } from "@jh/shared";
 import { getJson } from "../http";
 import type { SourceAdapter } from "../types";
+import { leverApi } from "../endpoints";
 
 interface LeverPosting {
   id: string;
@@ -59,8 +60,7 @@ export const lever: SourceAdapter<LeverConfig> = {
   },
   async discover(cfg, ctx) {
     ctx.progress(`Fetching Lever postings for ${cfg.company}`);
-    const host = cfg.region === "eu" ? "api.eu.lever.co" : "api.lever.co";
-    const data = await getJson<LeverPosting[]>(`https://${host}/v0/postings/${encodeURIComponent(cfg.company)}?mode=json`);
+    const data = await getJson<LeverPosting[]>(`${leverApi(cfg.region)}/postings/${encodeURIComponent(cfg.company)}?mode=json`);
     return { jobs: data.map((p) => mapLeverPosting(p, cfg)) };
   },
 };

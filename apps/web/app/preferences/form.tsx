@@ -20,19 +20,11 @@ function ListInput({ label, hint, value, onChange, placeholder }: { label: strin
   );
 }
 
-export function PreferencesForm({ initial }: { initial: Preferences }) {
-  const [p, setP] = useState(initial);
-  const { pending, result, run } = useAction();
-  const set = <K extends keyof Preferences>(k: K, v: Preferences[K]) => setP((x) => ({ ...x, [k]: v }));
-
+/** Controlled preference fields, shared by the Preferences page and the interview review. */
+export function PreferencesFields({ value: p, onChange }: { value: Preferences; onChange: (next: Preferences) => void }) {
+  const set = <K extends keyof Preferences>(k: K, v: Preferences[K]) => onChange({ ...p, [k]: v });
   return (
-    <form
-      className="flex flex-col gap-5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        run(() => savePreferencesAction(JSON.stringify(p)));
-      }}
-    >
+    <>
       <Card>
         <CardHeader title="What you're looking for" description="Used to filter company boards before any AI work, and to score matches." />
         <CardBody className="grid gap-4 sm:grid-cols-2">
@@ -152,6 +144,23 @@ export function PreferencesForm({ initial }: { initial: Preferences }) {
         </CardBody>
       </Card>
 
+    </>
+  );
+}
+
+export function PreferencesForm({ initial }: { initial: Preferences }) {
+  const [p, setP] = useState(initial);
+  const { pending, result, run } = useAction();
+
+  return (
+    <form
+      className="flex flex-col gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        run(() => savePreferencesAction(JSON.stringify(p)));
+      }}
+    >
+      <PreferencesFields value={p} onChange={setP} />
       <div className="flex items-center gap-3">
         <Button type="submit" variant="primary" disabled={pending}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : null}

@@ -6,6 +6,8 @@ import { loadEnvConfig } from "@next/env";
 loadEnvConfig(path.join(process.cwd(), "../.."));
 
 const config: NextConfig = {
+  // A second dev server (for example against demo data) needs its own build folder.
+  distDir: process.env.JH_NEXT_DIST_DIR || ".next",
   // Workspace packages ship TypeScript source.
   transpilePackages: ["@jh/shared", "@jh/db", "@jh/core", "@jh/documents", "@jh/llm", "@jh/sources", "@jh/applier", "@jh/browser"],
   // Native and very large server-only deps must not be bundled.

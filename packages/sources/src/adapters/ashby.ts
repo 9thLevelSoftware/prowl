@@ -1,6 +1,7 @@
 import { htmlToText, type RawJob } from "@jh/shared";
 import { getJson } from "../http";
 import type { SourceAdapter } from "../types";
+import { ashbyApi } from "../endpoints";
 
 interface AshbyJob {
   id: string;
@@ -63,7 +64,7 @@ export const ashby: SourceAdapter<AshbyConfig> = {
   async discover(cfg, ctx) {
     ctx.progress(`Fetching Ashby board ${cfg.org}`);
     const data = await getJson<{ jobs: AshbyJob[] }>(
-      `https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(cfg.org)}?includeCompensation=true`,
+      `${ashbyApi()}/job-board/${encodeURIComponent(cfg.org)}?includeCompensation=true`,
     );
     return { jobs: data.jobs.filter((j) => j.isListed !== false).map((j) => mapAshbyJob(j, cfg)) };
   },

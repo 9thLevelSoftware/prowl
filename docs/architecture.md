@@ -89,6 +89,32 @@ Only Greenhouse, Lever, and Ashby submit automatically. Other sites go to Needs 
 
 Prompts keep a stable prefix (system prompt plus fact ledger) ahead of per-job content, so providers with implicit prompt caching reuse it across jobs.
 
+## Interview
+
+`packages/core/src/interview.ts` runs three structured calls on the main model. Effort is picked per task: `interview_analyze` and `interview_summarize` at high, `interview_turn` at medium. The draft lives in the `interviews` table as JSON until the user applies the review.
+
+Deterministic guards sit between the model and the draft:
+
+- Preference patches are validated field by field. Invalid values are dropped, not guessed. Omitted fields count as "no change".
+- Screening answers and profile additions must carry evidence that appears in the candidate's own messages.
+- Only the candidate can skip a topic. The model's "skipped" is accepted only when the latest answer declines, and a covered topic never goes back.
+- Near-duplicate additions are merged. Avoided categories such as "crypto companies" move to excluded industries instead of company names.
+- `LlmClient.object` retries once when a reply doesn't match the schema.
+
+`applyInterview` (`interview-apply.ts`) saves preferences, approved Q&A, and the checked additions as a new profile version with a new fact ledger. It then adds the checked sources, queues discovery, and re-scores jobs.
+
+## Source builder
+
+`packages/sources/src/builder.ts` runs as the `build_sources` worker task.
+
+1. **Candidates:** AI-suggested employers, board URLs from web search (native search on OpenAI connections, else Firecrawl), boards behind jobs already discovered, and LinkedIn/Indeed/Adzuna searches.
+2. **Verification:** known board tokens are fetched from the public ATS APIs. Otherwise slug variants are tried, then the careers page is scanned for embedded boards. Greenhouse board names, posting hosts, and domains confirm identity. Anything unconfirmed is stored as `unconfirmed` and left unchecked.
+3. **Counts:** open jobs and jobs passing the title filter, with the closest titles as samples.
+
+Results go to `source_suggestions`, unique per user, type, and board. Added and dismissed rows keep their status across runs.
+
+The title filter (`packages/shared/src/titles.ts`) matches whole words. Level words (senior, staff) are optional. Role words (head, VP) are required when a title has only one other word. Bare role keywords are ignored. Titles in another function (marketing, legal, design, sales, and so on) are skipped unless a target title names that function.
+
 ## Not yet built
 
 - Workday: multi-step flows with account creation. Workday postings are listed for manual application.

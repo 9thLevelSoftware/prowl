@@ -15,6 +15,7 @@ interface LiveModel {
   efforts?: string[];
   defaultEffort?: string | null;
   thinking?: boolean;
+  webSearch?: boolean;
 }
 
 export function connectionBaseUrl(conn: Pick<LlmConnection, "sdk" | "baseUrl" | "catalogProviderId">): string {
@@ -71,6 +72,7 @@ async function fetchLive(db: Db, conn: LlmConnection): Promise<LiveModel[]> {
           context: m.context_window ?? undefined,
           efforts: (m.supported_reasoning_levels ?? m.supported_reasoning_efforts ?? []).map((l: any) => (typeof l === "string" ? l : l.effort)).filter(Boolean),
           defaultEffort: m.default_reasoning_level ?? m.default_reasoning_effort ?? null,
+          webSearch: m.supports_search_tool === true,
         }));
     }
     case "openai": {
@@ -126,6 +128,7 @@ export function toModelInfo(conn: Pick<LlmConnection, "sdk" | "catalogProviderId
     costIn: meta?.cost?.input ?? null,
     costOut: meta?.cost?.output ?? null,
     costCachedIn: meta?.cost?.cache_read ?? null,
+    webSearch: m.webSearch ?? (conn.sdk === "openai" && effort.effortKind !== "none"),
     source,
   };
 }

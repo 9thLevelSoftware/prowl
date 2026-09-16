@@ -32,7 +32,7 @@ const ITEMS = [
   { href: "/preferences", label: "Preferences", icon: SlidersHorizontal },
   { href: "/qa", label: "Saved answers", icon: MessagesSquare },
   { section: "System" },
-  { href: "/sources", label: "Job sources", icon: Rss },
+  { href: "/sources", label: "Job sources", icon: Rss, count: "suggestions" },
   { href: "/runs", label: "Activity & costs", icon: Activity },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;

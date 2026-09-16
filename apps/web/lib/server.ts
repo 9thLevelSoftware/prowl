@@ -44,7 +44,12 @@ export function navCounts() {
     .from(s.jobMatches)
     .where(and(eq(s.jobMatches.userId, USER), eq(s.jobMatches.status, "new")))
     .get();
-  return { review: by.ready_for_review ?? 0, needsInput: by.needs_input ?? 0, jobs: newJobs?.n ?? 0 };
+  const suggestions = db()
+    .select({ n: sql<number>`count(*)` })
+    .from(s.sourceSuggestions)
+    .where(and(eq(s.sourceSuggestions.userId, USER), eq(s.sourceSuggestions.status, "verified"), sql`coalesce(${s.sourceSuggestions.jobsMatching}, 1) > 0`))
+    .get();
+  return { review: by.ready_for_review ?? 0, needsInput: by.needs_input ?? 0, jobs: newJobs?.n ?? 0, suggestions: suggestions?.n ?? 0 };
 }
 
 /** Resolve a stored path for download, refusing anything outside the data directory. */

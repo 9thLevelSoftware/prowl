@@ -3,8 +3,22 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./*": "./src/*.ts" },
-  "scripts": {"typecheck":"tsc -p tsconfig.json"},
-  "dependencies": {"@jh/shared":"workspace:*","@jh/db":"workspace:*","@jh/llm":"workspace:*","@jh/documents":"workspace:*","@huggingface/transformers":"^3.7.0","zod":"^4.1.0","drizzle-orm":"^0.44.0"},
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@jh/shared": "workspace:*",
+    "@jh/db": "workspace:*",
+    "@jh/llm": "workspace:*",
+    "@jh/documents": "workspace:*",
+    "@huggingface/transformers": "^3.7.0",
+    "zod": "^4.1.0",
+    "drizzle-orm": "^0.44.0",
+    "@jh/applier": "workspace:*"
+  },
   "devDependencies": {}
 }

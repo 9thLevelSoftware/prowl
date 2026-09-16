@@ -28,3 +28,6 @@ export * from "./ats";
 export * from "./filter";
 export * from "./resolve";
 export { greenhouseApplyUrl } from "./adapters/greenhouse";
+export * from "./builder";
+export * from "./web/firecrawl";
+export * from "./web/search";

@@ -319,6 +319,64 @@ export const llmCalls = sqliteTable(
   (t) => [index("llm_calls_at").on(t.userId, t.at)],
 );
 
+/* ======================= Interview and source builder ====================== */
+
+export interface InterviewMessage {
+  role: "assistant" | "user";
+  content: string;
+  quickReplies?: string[];
+  inputKind?: "text" | "choice" | "multi" | "number";
+  at: string;
+}
+
+export const interviews = sqliteTable(
+  "interviews",
+  {
+    id: id(),
+    userId: userId(),
+    profileId: text("profile_id").references(() => profiles.id, { onDelete: "set null" }),
+    status: text("status").$type<"active" | "review" | "applied" | "abandoned">().notNull().default("active"),
+    messages: text("messages", { mode: "json" }).$type<InterviewMessage[]>().notNull(),
+    /** InterviewDraft from @jh/core, stored as JSON. */
+    draft: text("draft", { mode: "json" }).$type<Record<string, any>>().notNull(),
+    careerSummary: text("career_summary").notNull().default(""),
+    sourceRunId: text("source_run_id"),
+    ...timestamps,
+  },
+  (t) => [index("interviews_user_status").on(t.userId, t.status)],
+);
+
+export type Interview = typeof interviews.$inferSelect;
+
+export type SuggestionStatus = "pending" | "verified" | "unconfirmed" | "not_found" | "added" | "dismissed";
+
+export const sourceSuggestions = sqliteTable(
+  "source_suggestions",
+  {
+    id: id(),
+    userId: userId(),
+    runId: text("run_id"),
+    origin: text("origin").$type<"ai" | "web_search" | "learned" | "search">().notNull(),
+    company: text("company").notNull(),
+    domain: text("domain").notNull().default(""),
+    why: text("why").notNull().default(""),
+    type: text("type").$type<SourceType>().notNull(),
+    /** Adapter config for the source that would be created. */
+    config: text("config", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    /** Stable identity for de-duplication, e.g. "greenhouse:stripe". */
+    key: text("key").notNull(),
+    status: text("status").$type<SuggestionStatus>().notNull().default("pending"),
+    jobsOpen: integer("jobs_open"),
+    jobsMatching: integer("jobs_matching"),
+    sampleTitles: text("sample_titles", { mode: "json" }).$type<string[]>(),
+    note: text("note"),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("source_suggestions_user_key").on(t.userId, t.key), index("source_suggestions_status").on(t.userId, t.status)],
+);
+
+export type SourceSuggestion = typeof sourceSuggestions.$inferSelect;
+
 /** AI calls in progress right now, from any process. Rows are removed when the call ends. */
 export const aiActivity = sqliteTable("ai_activity", {
   id: id(),
@@ -367,6 +425,8 @@ export interface ModelInfo {
   costIn: number | null;
   costOut: number | null;
   costCachedIn: number | null;
+  /** The provider offers a built-in web search tool for this model. */
+  webSearch?: boolean;
   /** "live" when the provider's model list returned it, "catalog" when known only from models.dev. */
   source: "live" | "catalog";
 }

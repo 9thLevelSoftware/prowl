@@ -1,6 +1,7 @@
 import { htmlToText, type RawJob } from "@jh/shared";
 import { getJson } from "../http";
 import type { SourceAdapter } from "../types";
+import { greenhouseApi } from "../endpoints";
 
 interface GhJob {
   id: number;
@@ -61,7 +62,7 @@ export const greenhouse: SourceAdapter<GreenhouseConfig> = {
   },
   async discover(cfg, ctx) {
     ctx.progress(`Fetching Greenhouse board ${cfg.boardToken}`);
-    const data = await getJson<{ jobs: GhJob[] }>(`https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(cfg.boardToken)}/jobs?content=true`);
+    const data = await getJson<{ jobs: GhJob[] }>(`${greenhouseApi()}/boards/${encodeURIComponent(cfg.boardToken)}/jobs?content=true`);
     return { jobs: data.jobs.map((j) => mapGreenhouseJob(j, cfg)) };
   },
 };

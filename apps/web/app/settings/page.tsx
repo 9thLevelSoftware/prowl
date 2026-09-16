@@ -1,5 +1,7 @@
 import { getActiveConnection, listConnections } from "@jh/db";
-import { ensureEnvConnection, keyStorage, listProviders } from "@jh/llm";
+import { ensureEnvConnection, getLlm, keyStorage, listProviders } from "@jh/llm";
+import { firecrawlSettings } from "@jh/sources";
+import { WebToolsCard } from "./web-tools";
 import { dataDir } from "@jh/shared";
 import { Card, CardBody, CardHeader, Notice, PageHeader } from "@/components/ui";
 import { db, USER } from "@/lib/server";
@@ -31,6 +33,7 @@ export default async function SettingsPage() {
             <ConnectionsPanel connections={connections} activeId={active?.id ?? null} providers={listProviders()} />
           </CardBody>
         </Card>
+        <WebToolsCard initial={firecrawlSettings(d)} nativeSearch={getLlm(d).canSearchWeb() ? (active?.label ?? "AI connection") : null} />
         <Card>
           <CardHeader title="Local data" />
           <CardBody className="space-y-1 text-[13px] text-muted">

@@ -16,7 +16,8 @@ import {
 import type { LlmClient } from "@jh/llm";
 import { APPLIABLE_ATS, logger, randomBetween, type SourceType } from "@jh/shared";
 import { ingestJobs, processJob, tailorApplication } from "@jh/core";
-import { getAdapter, prefilter } from "@jh/sources";
+import { Firecrawl, getAdapter, prefilter } from "@jh/sources";
+import { suggestLearnedBoards } from "./sources-task";
 import { applyOnPage, type ApplyOutcome } from "@jh/applier";
 import { newPage, withBrowserLock } from "@jh/browser";
 import { emit } from "./events";
@@ -55,9 +56,15 @@ export async function handleDiscoverSource(db: Db, llm: LlmClient, task: QueueTa
   };
   try {
     const cfg = adapter.validate(src.config);
-    const result = await adapter.discover(cfg, { prefs, llm, progress });
+    const firecrawl = await Firecrawl.fromSettings(db).catch(() => null);
+    const result = await adapter.discover(cfg, { prefs, llm, progress, firecrawl });
     const kept = prefilter(result.jobs, prefs);
     const ingest = ingestJobs(db, src, kept);
+    // Company boards behind aggregator and career-page jobs become source suggestions.
+    if (!["greenhouse", "lever", "ashby"].includes(src.type)) {
+      const learned = suggestLearnedBoards(db, src.userId, src.name, kept);
+      if (learned) emit({ type: "sources:learned", count: learned });
+    }
 
     let added = 0;
     for (const d of result.discoveredSources ?? []) {

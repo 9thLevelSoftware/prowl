@@ -367,6 +367,77 @@ export function unlockRefresh(db: Db, id: string): void {
   db.update(s.llmConnections).set({ refreshLockUntil: null }).where(eq(s.llmConnections.id, id)).run();
 }
 
+/* ======================== Interviews & suggestions ================= */
+
+export function getOpenInterview(db: Db, userId = LOCAL_USER_ID): s.Interview | undefined {
+  return db
+    .select()
+    .from(s.interviews)
+    .where(and(eq(s.interviews.userId, userId), inArray(s.interviews.status, ["active", "review"])))
+    .orderBy(desc(s.interviews.createdAt))
+    .get();
+}
+
+export function getInterview(db: Db, id: string): s.Interview | undefined {
+  return db.select().from(s.interviews).where(eq(s.interviews.id, id)).get();
+}
+
+export function updateInterview(db: Db, id: string, patch: Partial<typeof s.interviews.$inferInsert>): s.Interview {
+  return db.update(s.interviews).set(patch).where(eq(s.interviews.id, id)).returning().get();
+}
+
+/**
+ * Insert or refresh a suggestion by its key. Suggestions the user already added or dismissed keep
+ * that status, so re-running discovery never resurrects a dismissed company.
+ */
+export function upsertSuggestion(db: Db, values: typeof s.sourceSuggestions.$inferInsert): s.SourceSuggestion {
+  const userId = values.userId ?? LOCAL_USER_ID;
+  const existing = db
+    .select()
+    .from(s.sourceSuggestions)
+    .where(and(eq(s.sourceSuggestions.userId, userId), eq(s.sourceSuggestions.key, values.key)))
+    .get();
+  if (!existing) return db.insert(s.sourceSuggestions).values({ ...values, userId }).returning().get();
+  const locked = existing.status === "added" || existing.status === "dismissed";
+  return db
+    .update(s.sourceSuggestions)
+    .set({
+      runId: values.runId ?? existing.runId,
+      why: values.why || existing.why,
+      domain: values.domain || existing.domain,
+      jobsOpen: values.jobsOpen ?? existing.jobsOpen,
+      jobsMatching: values.jobsMatching ?? existing.jobsMatching,
+      sampleTitles: values.sampleTitles ?? existing.sampleTitles,
+      note: values.note ?? existing.note,
+      status: locked ? existing.status : (values.status ?? existing.status),
+    })
+    .where(eq(s.sourceSuggestions.id, existing.id))
+    .returning()
+    .get();
+}
+
+export function listSuggestions(db: Db, statuses: s.SuggestionStatus[], userId = LOCAL_USER_ID): s.SourceSuggestion[] {
+  return db
+    .select()
+    .from(s.sourceSuggestions)
+    .where(and(eq(s.sourceSuggestions.userId, userId), inArray(s.sourceSuggestions.status, statuses)))
+    .orderBy(sql`coalesce(${s.sourceSuggestions.jobsMatching}, -1) desc`, desc(s.sourceSuggestions.jobsOpen))
+    .all();
+}
+
+/** Keys of boards already configured as sources, e.g. "greenhouse:stripe". */
+export function existingSourceKeys(db: Db, userId = LOCAL_USER_ID): Set<string> {
+  const keys = new Set<string>();
+  for (const src of db.select().from(s.jobSources).where(eq(s.jobSources.userId, userId)).all()) {
+    const c = src.config as Record<string, unknown>;
+    const token = c.boardToken ?? c.company ?? c.org;
+    if (token) keys.add(`${src.type}:${String(token).toLowerCase()}`);
+    if (src.type === "adzuna") keys.add(`adzuna:${String(c.what ?? "").toLowerCase()}|${String(c.where ?? "").toLowerCase()}`);
+    if (src.type === "linkedin" || src.type === "indeed") keys.add(`${src.type}:${String(c.keywords ?? "").toLowerCase()}|${String(c.location ?? "").toLowerCase()}`);
+  }
+  return keys;
+}
+
 /* ============================ AI activity ========================= */
 
 export function startActivity(db: Db, values: Omit<typeof s.aiActivity.$inferInsert, "pid"> & { pid?: number }): string {

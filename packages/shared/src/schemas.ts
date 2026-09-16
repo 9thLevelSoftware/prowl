@@ -293,5 +293,5 @@ export const OUTCOME_STATUSES = ["none", "acknowledged", "recruiter_contact", "i
 export const OutcomeStatus = z.enum(OUTCOME_STATUSES);
 export type OutcomeStatus = z.infer<typeof OutcomeStatus>;
 
-export const TASK_TYPES = ["discover_all", "discover_source", "process_job", "tailor", "apply"] as const;
+export const TASK_TYPES = ["discover_all", "discover_source", "process_job", "tailor", "apply", "build_sources"] as const;
 export type TaskType = (typeof TASK_TYPES)[number];

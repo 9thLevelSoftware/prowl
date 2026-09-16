@@ -22,6 +22,13 @@
       "when": 1789596701804,
       "tag": "0002_ai_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789599418981,
+      "tag": "0003_interviews_sources",
+      "breakpoints": true
     }
   ]
 }

@@ -52,6 +52,18 @@ describe("prefilter", () => {
   it("passes everything without targets", () => {
     expect(prefilter(jobs, Preferences.parse({}))).toHaveLength(4);
   });
+  it("keeps role words when a title has only one other word, and ignores bare role keywords", () => {
+    const titles = ["SVP, Product Management", "Head of Product", "Account Executive, Product", "Senior Vice President of Product", "Director of Product", "VP Sales"].map(job);
+    const prefs = Preferences.parse({ targetTitles: ["VP of Product", "Head of Product"], keywords: ["head", "vp"] });
+    expect(prefilter(titles, prefs).map((j) => j.title)).toEqual(["SVP, Product Management", "Head of Product", "Senior Vice President of Product"]);
+    expect(prefilter(titles, Preferences.parse({ keywords: ["head"] }))).toHaveLength(titles.length);
+    expect(prefilter(titles, Preferences.parse({ keywords: ["product management"] })).map((j) => j.title)).toEqual(["SVP, Product Management"]);
+  });
+  it("skips titles in a different job function unless a target names it", () => {
+    const titles = ["Head of Product", "Head of Product Marketing", "Head of Product Design", "Staff Product Manager"].map(job);
+    expect(prefilter(titles, Preferences.parse({ targetTitles: ["Head of Product", "Product Manager"] })).map((j) => j.title)).toEqual(["Head of Product", "Staff Product Manager"]);
+    expect(prefilter(titles, Preferences.parse({ targetTitles: ["Product Designer", "Head of Product"] })).map((j) => j.title)).toEqual(["Head of Product", "Head of Product Design"]);
+  });
   it("supports keyword matches", () => {
     expect(prefilter(jobs, Preferences.parse({ keywords: ["data"] })).map((j) => j.title)).toEqual(["Staff Data Engineer"]);
   });

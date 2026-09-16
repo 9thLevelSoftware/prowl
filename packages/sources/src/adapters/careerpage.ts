@@ -107,7 +107,8 @@ export const careerpage: SourceAdapter<CareerPageConfig> = {
     let boards = pages.flatMap((p) => findEmbeddedBoards(p.html));
     if (!boards.length && pages[0]) {
       ctx.progress(`No board in static HTML for ${cfg.companyName}; rendering page`);
-      const rendered = await renderHtml(pages[pages.length - 1]!.url);
+      const target = pages[pages.length - 1]!.url;
+      const rendered = ctx.firecrawl ? await ctx.firecrawl.scrape(target).then((r) => r.rawHtml, () => renderHtml(target)) : await renderHtml(target);
       if (rendered) {
         boards = findEmbeddedBoards(rendered);
         pages.push({ html: rendered, url: pages[pages.length - 1]!.url });

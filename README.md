@@ -7,12 +7,14 @@ Everything runs on your computer. Nothing is submitted until you approve it.
 ## How it works
 
 1. **Profile.** Upload a resume (PDF, DOCX, TXT) or build one in the editor. The AI copies it into a structured profile. You confirm which skills are real. The confirmed profile becomes a ledger of numbered facts.
-2. **Discovery.** Sources run on a schedule: Greenhouse, Lever, and Ashby company boards, Adzuna search, company career pages, and optional LinkedIn/Indeed discovery. Postings are filtered by your target titles before any AI work.
-3. **Matching.** Each posting's requirements are extracted and scored against your profile and preferences. The score combines skills, semantic similarity from a local embedding model, experience, and preferences.
-4. **Tailoring.** Strong matches get a tailored resume and cover letter. Every bullet must cite the fact IDs it comes from. Deterministic checks strip unconfirmed skills and reject numbers that aren't in the cited facts. A separate AI auditor then labels every claim as entailed, exaggerated, or fabricated.
-5. **Review.** You see the original and tailored resume side by side, with flagged claims highlighted and keyword coverage before and after. Flags block approval until you edit the content or explicitly accept them.
-6. **Applying.** Approved applications are filled in a real Chrome window on Greenhouse, Lever, and Ashby. Dry run mode, on by default, fills the form and stops before submitting. Unknown screening questions pause for your answer once and are saved for reuse. CAPTCHAs and verification checks always pause for you.
-7. **Tracking.** Each application stores the company, position, date, apply URL, the exact PDF files sent with SHA-256 hashes, every answer given, screenshots, the confirmation text, and a timeline. You record outcomes such as interviews and offers. CSV export is available.
+2. **Interview.** An AI interviewer reads your confirmed profile and asks short questions about target roles, seniority, location, pay, work authorization, and sponsorship, with tap-to-answer replies. Screening answers and new profile facts are kept only when they quote your own words. One review screen shows everything, and nothing is saved until you apply it. Mentioned skills or accomplishments become proposed profile additions that you confirm one at a time.
+3. **Sources.** The source builder suggests employers from your profile and interview, finds boards through web search, and learns boards from jobs already found. Every Greenhouse, Lever, and Ashby board is checked live and shows open and matching job counts. Boards that can't be confirmed as the right company are marked unconfirmed.
+4. **Discovery.** Sources run on a schedule: Greenhouse, Lever, and Ashby company boards, Adzuna search, company career pages, and optional LinkedIn/Indeed discovery. Postings are filtered by your target titles before any AI work.
+5. **Matching.** Each posting's requirements are extracted and scored against your profile and preferences. The score combines skills, semantic similarity from a local embedding model, experience, and preferences.
+6. **Tailoring.** Strong matches get a tailored resume and cover letter. Every bullet must cite the fact IDs it comes from. Deterministic checks strip unconfirmed skills and reject numbers that aren't in the cited facts. A separate AI auditor then labels every claim as entailed, exaggerated, or fabricated.
+7. **Review.** You see the original and tailored resume side by side, with flagged claims highlighted and keyword coverage before and after. Flags block approval until you edit the content or explicitly accept them.
+8. **Applying.** Approved applications are filled in a real Chrome window on Greenhouse, Lever, and Ashby. Dry run mode, on by default, fills the form and stops before submitting. Unknown screening questions pause for your answer once and are saved for reuse. CAPTCHAs and verification checks always pause for you.
+9. **Tracking.** Each application stores the company, position, date, apply URL, the exact PDF files sent with SHA-256 hashes, every answer given, screenshots, the confirmation text, and a timeline. You record outcomes such as interviews and offers. CSV export is available.
 
 ## Setup
 
@@ -45,6 +47,7 @@ Legacy `.env` configuration (`JH_LLM_PROVIDER` plus credentials) still works whe
 
 ### Optional
 
+- **Web search for sources:** ChatGPT and OpenAI API connections use their built-in web search automatically. Otherwise, a self-hosted [Firecrawl](https://github.com/firecrawl/firecrawl) server can be added in **Settings → Web tools**. It also renders careers pages that need JavaScript. Firecrawl search needs a search backend such as SearXNG on that server.
 - **Adzuna:** a free app ID and key from developer.adzuna.com, set as `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`.
 - **LinkedIn and Indeed discovery:** use **Open browser to sign in** on the Sources page once. These sites prohibit automation in their terms, so the adapters only read search results, slowly and with caps, and never apply there.
 

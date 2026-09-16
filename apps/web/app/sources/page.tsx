@@ -1,4 +1,7 @@
-import { desc, eq, schema as s } from "@jh/db";
+import { and, desc, eq, inArray, listSuggestions, schema as s } from "@jh/db";
+import { getLlm } from "@jh/llm";
+import { firecrawlSettings } from "@jh/sources";
+import { SuggestedSources } from "./suggestions";
 import { ADAPTERS } from "@jh/sources";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, Table, Td, Th, timeAgo } from "@/components/ui";
 import { ActionButton } from "@/components/action";
@@ -32,6 +35,12 @@ export default function SourcesPage() {
         }
       />
       <div className="flex flex-col gap-5">
+        <SuggestedSources
+          suggestions={listSuggestions(db(), ["verified", "unconfirmed", "not_found", "pending"], USER).map((x) => ({ id: x.id, company: x.company, type: x.type, origin: x.origin, status: x.status, why: x.why, note: x.note, jobsOpen: x.jobsOpen, jobsMatching: x.jobsMatching, sampleTitles: x.sampleTitles ?? [], config: x.config }))}
+          running={!!db().select({ id: s.queueTasks.id }).from(s.queueTasks).where(and(eq(s.queueTasks.type, "build_sources"), inArray(s.queueTasks.status, ["pending", "running"]))).get()}
+          message={db().select().from(s.pipelineRuns).where(eq(s.pipelineRuns.kind, "build_sources")).orderBy(desc(s.pipelineRuns.startedAt)).get()?.message ?? null}
+          searchProvider={getLlm(db()).canSearchWeb() ? "built into your AI connection" : firecrawlSettings(db()).enabled ? "Firecrawl" : "not available"}
+        />
         <AddSource adapters={adapters} />
         {!adzunaReady ? (
           <p className="text-[13px] text-muted">

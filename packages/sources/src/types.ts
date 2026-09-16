@@ -5,6 +5,8 @@ export interface SourceContext {
   prefs: Preferences;
   /** Available to adapters that need model help (career page link extraction). */
   llm?: LlmClient;
+  /** Optional Firecrawl server for pages that need JavaScript rendering. */
+  firecrawl?: import("./web/firecrawl").Firecrawl | null;
   /** Emits progress lines to the run log. */
   progress: (msg: string) => void;
   signal?: AbortSignal;
