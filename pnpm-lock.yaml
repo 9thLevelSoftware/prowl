@@ -81,6 +81,9 @@ importers:
       '@jh/applier':
         specifier: workspace:*
         version: link:../../packages/applier
+      '@jh/browser':
+        specifier: workspace:*
+        version: link:../../packages/browser
       '@jh/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -111,6 +114,9 @@ importers:
 
   packages/applier:
     dependencies:
+      '@jh/browser':
+        specifier: workspace:*
+        version: link:../browser
       '@jh/db':
         specifier: workspace:*
         version: link:../db
@@ -129,6 +135,15 @@ importers:
       zod:
         specifier: ^4.1.0
         version: 4.6.5
+
+  packages/browser:
+    dependencies:
+      '@jh/shared':
+        specifier: workspace:*
+        version: link:../shared
+      playwright:
+        specifier: ^1.55.0
+        version: 1.63.0
 
   packages/core:
     dependencies:
@@ -223,6 +238,12 @@ importers:
 
   packages/sources:
     dependencies:
+      '@jh/browser':
+        specifier: workspace:*
+        version: link:../browser
+      '@jh/db':
+        specifier: workspace:*
+        version: link:../db
       '@jh/llm':
         specifier: workspace:*
         version: link:../llm
@@ -232,6 +253,9 @@ importers:
       cheerio:
         specifier: ^1.1.0
         version: 1.2.0
+      drizzle-orm:
+        specifier: ^0.44.0
+        version: 0.44.7(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.11.1)
       playwright:
         specifier: ^1.55.0
         version: 1.63.0
