@@ -1,0 +1,10 @@
+{
+  "name": "@jh/db",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./*": "./src/*.ts" },
+  "scripts": {"typecheck":"tsc -p tsconfig.json","generate":"drizzle-kit generate","migrate":"tsx src/migrate.ts"},
+  "dependencies": {"@jh/shared":"workspace:*","better-sqlite3":"^12.4.0","drizzle-orm":"^0.44.0"},
+  "devDependencies": {"@types/better-sqlite3":"^7.6.13","drizzle-kit":"^0.31.0"}
+}

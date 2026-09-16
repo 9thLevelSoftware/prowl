@@ -1,0 +1,33 @@
+{
+  "name": "@jh/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jh/shared": "workspace:*",
+    "@jh/db": "workspace:*",
+    "@jh/core": "workspace:*",
+    "@jh/documents": "workspace:*",
+    "@jh/llm": "workspace:*",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "lucide-react": "^0.540.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.3.0",
+    "drizzle-orm": "^0.44.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.0",
+    "@tailwindcss/postcss": "^4.1.0"
+  }
+}
