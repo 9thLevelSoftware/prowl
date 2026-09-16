@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Upload, Loader2 } from "lucide-react";
 import { Button, Textarea, Card, CardBody, CardHeader } from "@/components/ui";
 import { ResultMessage, useAction } from "@/components/action";
@@ -11,6 +11,13 @@ export function ResumeUpload({ hasProfile }: { hasProfile: boolean }) {
   const [mode, setMode] = useState<"file" | "paste">("file");
   const [fileName, setFileName] = useState("");
   const form = useRef<HTMLFormElement>(null);
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!pending) return setElapsed(0);
+    const started = Date.now();
+    const t = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [pending]);
 
   return (
     <Card>
@@ -59,7 +66,13 @@ export function ResumeUpload({ hasProfile }: { hasProfile: boolean }) {
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}
               {pending ? "Reading your resume…" : "Import resume"}
             </Button>
-            <ResultMessage result={result} />
+            {pending ? (
+              <span className="text-[13px] text-muted" aria-live="polite">
+                {elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`} · The AI is copying your resume into fields. This usually takes under a minute, longer at high reasoning effort.
+              </span>
+            ) : (
+              <ResultMessage result={result} />
+            )}
           </div>
         </form>
       </CardBody>

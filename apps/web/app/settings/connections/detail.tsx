@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Loader2, RefreshCw, Check, ExternalLink } from "lucide-react";
 import type { LlmConnection, ModelInfo } from "@jh/db/schema";
-import { EFFORT_LABELS } from "@jh/llm/effort";
+import { AUTO_EFFORT, EFFORT_LABELS, TASK_EFFORT_SUMMARY } from "@jh/llm/effort";
 import { Badge, Button, Input, Label, LabelText, Notice, Select, cn, formatDateTime, timeAgo } from "@/components/ui";
 import { Combobox } from "@/components/combobox";
 import { ResultMessage, useAction } from "@/components/action";
@@ -37,7 +37,7 @@ function SlotPicker({
 }) {
   const saved = conn.selections[slot];
   const [model, setModel] = useState<string | null>(saved?.model ?? null);
-  const [effort, setEffort] = useState<string | null>(saved?.effort ?? null);
+  const [effort, setEffort] = useState<string | null>(saved?.effort ?? AUTO_EFFORT);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const info = models.find((m) => m.id === model);
@@ -95,7 +95,7 @@ function SlotPicker({
           onChange={(m) => {
             const next = models.find((x) => x.id === m);
             const remembered = effortByModel[m];
-            const e = next?.efforts.length ? (remembered && next.efforts.includes(remembered) ? remembered : next.defaultEffort) : null;
+            const e = next?.efforts.length ? (remembered && (remembered === AUTO_EFFORT || next.efforts.includes(remembered)) ? remembered : AUTO_EFFORT) : null;
             setModel(m);
             setEffort(e);
             void persist(m, e);
@@ -112,17 +112,17 @@ function SlotPicker({
           <Select
             aria-label={`${slot === "main" ? "Main" : "Fast"} model reasoning effort`}
             className="mt-1 h-9"
-            value={effort ?? info.defaultEffort ?? ""}
+            value={effort && (effort === AUTO_EFFORT || info.efforts.includes(effort)) ? effort : AUTO_EFFORT}
             onChange={(e) => {
               setEffort(e.target.value);
               onEffortMemory(model!, e.target.value);
               void persist(model!, e.target.value);
             }}
           >
+            <option value={AUTO_EFFORT}>{EFFORT_LABELS[AUTO_EFFORT]}</option>
             {info.efforts.map((x) => (
               <option key={x} value={x}>
                 {EFFORT_LABELS[x] ?? x}
-                {x === info.defaultEffort ? " (default)" : ""}
               </option>
             ))}
           </Select>
@@ -224,7 +224,9 @@ export function ConnectionDetail({ conn, isActive, onRemoved }: { conn: LlmConne
           ) : null}
           <SlotPicker key={`${conn.id}-main`} conn={conn} slot="main" models={models} effortByModel={effortByModel} onEffortMemory={(m, e) => setEffortByModel((x) => ({ ...x, [m]: e }))} />
           <SlotPicker key={`${conn.id}-fast`} conn={conn} slot="fast" models={models} effortByModel={effortByModel} onEffortMemory={(m, e) => setEffortByModel((x) => ({ ...x, [m]: e }))} />
-          <p className="text-[12px] text-muted">Choices are saved to this connection. Switching away and back restores them.</p>
+          <p className="text-[12px] text-muted">
+            {TASK_EFFORT_SUMMARY} Pick a specific level to use it for everything. Choices are saved to this connection and restored when you come back.
+          </p>
         </section>
       )}
 

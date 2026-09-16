@@ -14,7 +14,7 @@ function describe(c: LlmConnection): string {
   if (c.kind === "env") return "From .env";
   const model = c.selections.main?.model;
   const who = c.authType === "oauth" ? (c.accountLabel ?? "Not signed in") : (c.keyHint ?? (c.authType === "none" ? "No key" : "API key"));
-  return model ? `${model}${c.selections.main?.effort ? ` · ${c.selections.main.effort}` : ""}` : who;
+  return model ? `${model} · ${c.selections.main?.effort && c.selections.main.effort !== "auto" ? c.selections.main.effort : "auto effort"}` : who;
 }
 
 export function ConnectionsPanel({ connections, activeId, providers }: { connections: LlmConnection[]; activeId: string | null; providers: ProviderSummary[] }) {

@@ -11,6 +11,7 @@ const BUDGET_LEVELS = ["off", "low", "medium", "high"];
 const BUDGET_TOKENS: Record<string, number> = { low: 2048, medium: 8192, high: 24576 };
 
 export const EFFORT_LABELS: Record<string, string> = {
+  auto: "Automatic (by task)",
   none: "None",
   off: "Off",
   on: "On",
@@ -23,6 +24,61 @@ export const EFFORT_LABELS: Record<string, string> = {
   ultra: "Ultra",
   dynamic: "Dynamic",
 };
+
+/* ============================ Automatic effort =========================== */
+
+export const AUTO_EFFORT = "auto";
+export type EffortIntent = "low" | "medium" | "high";
+
+/**
+ * How much reasoning each task deserves when effort is Automatic.
+ * - low: copying or classifying text that is already on the page
+ * - medium: short writing grounded in given facts
+ * - high: work where quality or truthfulness decides the outcome
+ */
+export const TASK_EFFORT: Record<string, EffortIntent> = {
+  extract_profile: "low",
+  extract_requirements: "low",
+  careerpage_links: "low",
+  vision_form_check: "low",
+  connection_test: "low",
+  ping: "low",
+  builder_bullets: "medium",
+  builder_summary: "medium",
+  form_answers: "medium",
+  cover_letter: "medium",
+  tailor: "high",
+  audit: "high",
+  audit_resume: "high",
+  audit_cover: "high",
+  audit_resume_edit: "high",
+  audit_cover_edit: "high",
+};
+
+export function effortForTask(task: string): EffortIntent {
+  return TASK_EFFORT[task] ?? "medium";
+}
+
+const SCALE = ["none", "off", "minimal", "low", "medium", "on", "high", "xhigh", "max", "ultra"];
+const TARGET: Record<EffortIntent, string[]> = {
+  // Preferred levels in order; the first one the model supports wins.
+  low: ["low", "minimal", "medium", "on"],
+  medium: ["medium", "low", "high", "on"],
+  high: ["high", "xhigh", "medium", "on"],
+};
+
+/** Map a task's intent onto the effort levels a specific model actually offers. */
+export function pickEffort(efforts: string[], intent: EffortIntent): string | null {
+  if (!efforts.length) return null;
+  for (const e of TARGET[intent]) if (efforts.includes(e)) return e;
+  // Unusual scales: pick by position (low = bottom third, high = top third), never "off"/"none".
+  const usable = efforts.filter((e) => e !== "off" && e !== "none").sort((a, b) => SCALE.indexOf(a) - SCALE.indexOf(b));
+  if (!usable.length) return efforts[0]!;
+  const i = intent === "low" ? 0 : intent === "medium" ? Math.floor((usable.length - 1) / 2) : Math.ceil((usable.length - 1) * 0.67);
+  return usable[i]!;
+}
+
+export const TASK_EFFORT_SUMMARY = "Automatic uses low effort to read resumes and postings, medium to write cover letters and answers, and high to tailor resumes and fact-check them.";
 
 function pickDefault(efforts: string[]): string | null {
   for (const e of ["medium", "high", "low", "on", "dynamic"]) if (efforts.includes(e)) return e;

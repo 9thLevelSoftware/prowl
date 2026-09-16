@@ -20,6 +20,14 @@ export interface CallContext {
   abortSignal?: AbortSignal;
 }
 
+/** Upper bound for one AI call, so a stuck provider can never leave the UI waiting forever. */
+const CALL_TIMEOUT_MS = Number(process.env.JH_LLM_TIMEOUT_MS ?? 15 * 60_000);
+
+function callSignal(ctx: { abortSignal?: AbortSignal }): AbortSignal {
+  const timeout = AbortSignal.timeout(CALL_TIMEOUT_MS);
+  return ctx.abortSignal ? AbortSignal.any([ctx.abortSignal, timeout]) : timeout;
+}
+
 export type Input = { system?: string; prompt: string } | { system?: string; messages: ModelMessage[] };
 
 class Semaphore {
@@ -114,11 +122,11 @@ export class LlmClient {
     this.sem.setLimit(this.runtime?.connection.concurrency ?? 2);
   }
 
-  private async model(tier: Tier): Promise<BuiltModel & { conn: LlmConnection }> {
+  private async model(tier: Tier, task: string): Promise<BuiltModel & { conn: LlmConnection }> {
     this.reload();
     if (!this.runtime) throw new Error("No AI connection is set up. Add one on the Settings page.");
     const sel = tier === "smart" ? this.runtime.main : this.runtime.fast;
-    return { ...(await buildModel(this.db, this.runtime.connection, sel, tier)), conn: this.runtime.connection };
+    return { ...(await buildModel(this.db, this.runtime.connection, sel, tier, task)), conn: this.runtime.connection };
   }
 
   private record(ctx: CallContext, conn: LlmConnection | null, built: BuiltModel | null, started: number, usage: any, error?: unknown): void {
@@ -138,7 +146,7 @@ export class LlmClient {
           userId: ctx.userId ?? LOCAL_USER_ID,
           task: ctx.task,
           provider: conn?.label ?? "none",
-          model: built ? `${built.modelId}${this.effortLabel(built)}` : "unknown",
+          model: built ? `${built.modelId}${built.effort ? ` (${built.effort})` : ""}` : "unknown",
           inputTokens: input,
           outputTokens: output,
           cachedInputTokens: cached,
@@ -155,26 +163,19 @@ export class LlmClient {
     }
   }
 
-  private effortLabel(built: BuiltModel): string {
-    const r = this.runtime;
-    if (!r) return "";
-    const sel = r.main.model === built.modelId ? r.main : r.fast;
-    return sel.effort ? ` (${sel.effort})` : "";
-  }
-
   /** Structured output validated against a zod schema. */
   async object<S extends z.ZodType>(ctx: CallContext, schemaDef: S, input: Input): Promise<z.infer<S>> {
     return this.sem.run(async () => {
       const started = Date.now();
       let built: (BuiltModel & { conn: LlmConnection }) | null = null;
       try {
-        built = await this.model(ctx.tier ?? "smart");
+        built = await this.model(ctx.tier ?? "smart", ctx.task);
         const common = {
           model: built.model,
           schema: schemaDef,
           maxOutputTokens: ctx.maxOutputTokens,
           temperature: built.info?.reasoning ? undefined : ctx.temperature,
-          abortSignal: ctx.abortSignal,
+          abortSignal: callSignal(ctx),
           maxRetries: 3,
           providerOptions: built.providerOptions,
           ...input,
@@ -203,7 +204,7 @@ export class LlmClient {
       const started = Date.now();
       let built: (BuiltModel & { conn: LlmConnection }) | null = null;
       try {
-        built = await this.model(ctx.tier ?? "smart");
+        built = await this.model(ctx.tier ?? "smart", ctx.task);
         return await this.runText(built, ctx, input, started);
       } catch (err) {
         this.record(ctx, built?.conn ?? this.runtime?.connection ?? null, built, started, undefined, err);
@@ -217,7 +218,7 @@ export class LlmClient {
       model: built.model,
       maxOutputTokens: ctx.maxOutputTokens,
       temperature: built.info?.reasoning ? undefined : ctx.temperature,
-      abortSignal: ctx.abortSignal,
+      abortSignal: callSignal(ctx),
       maxRetries: 2,
       providerOptions: built.providerOptions,
       ...input,
@@ -249,7 +250,7 @@ export class LlmClient {
       const fresh = listConnections(this.db).find((c) => c.id === conn.id)!;
       const sel = resolveSelection(fresh, "fast");
       model = sel.model;
-      const built = { ...(await buildModel(this.db, fresh, sel, "fast")), conn: fresh };
+      const built = { ...(await buildModel(this.db, fresh, sel, "fast", "connection_test")), conn: fresh };
       const reply = await this.runText(built, { task: "connection_test", maxOutputTokens: 512 }, { prompt: "Reply with the single word: pong" }, started);
       updateConnection(this.db, conn.id, { status: "ok", lastError: null, lastTestedAt: new Date().toISOString() });
       return { ok: true, model, reply: reply.trim(), ms: Date.now() - started, modelsError };

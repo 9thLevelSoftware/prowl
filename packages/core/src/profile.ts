@@ -20,7 +20,7 @@ const shortId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(count
 
 /** Parse resume text into a profile. Extracted skills start unconfirmed until the user reviews them. */
 export async function extractProfile(llm: LlmClient, resumeText: string): Promise<ProfileDataT> {
-  const out = await llm.object({ task: "extract_profile", tier: "smart" }, ProfileExtractOut, {
+  const out = await llm.object({ task: "extract_profile", tier: "fast" }, ProfileExtractOut, {
     system: EXTRACT_SYSTEM,
     prompt: `Resume text:\n"""\n${resumeText}\n"""`,
   });

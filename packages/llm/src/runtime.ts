@@ -5,7 +5,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
 import { getActiveConnection, type Db, type EffortKind, type LlmConnection, type ModelInfo } from "@jh/db";
 import { findCatalogModel } from "./catalog";
-import { effortInfo, providerOptionsFor } from "./effort";
+import { AUTO_EFFORT, effortForTask, effortInfo, pickEffort, providerOptionsFor } from "./effort";
 import { connectionBaseUrl, toModelInfo } from "./models";
 import { getSecret } from "./secrets";
 import { getAccessToken } from "./oauth/flows";
@@ -35,7 +35,8 @@ export function resolveSelection(conn: LlmConnection, slot: "main" | "fast"): Re
   const modelId = chosen?.model ?? cache[0]?.id;
   if (!modelId) throw new Error(`Choose a model for "${conn.label}" on the Settings page`);
   const info = cache.find((m) => m.id === modelId) ?? toModelInfo(conn, { id: modelId }, "catalog");
-  const effort = chosen?.effort && info.efforts.includes(chosen.effort) ? chosen.effort : (conn.selections.effortByModel[modelId] ?? info.defaultEffort);
+  // Automatic (per task) unless the user picked a specific level this model supports.
+  const effort = chosen?.effort && chosen.effort !== AUTO_EFFORT && info.efforts.includes(chosen.effort) ? chosen.effort : AUTO_EFFORT;
   return { model: modelId, effort: info.efforts.length ? effort : null, effortKind: info.effortKind, info };
 }
 
@@ -92,18 +93,63 @@ export function chatgptBodyRewrite(body: unknown, effort: string | null): string
   return JSON.stringify(j);
 }
 
+/**
+ * The ChatGPT backend only streams, and its final `response.completed` event arrives with an empty
+ * `output` array: the actual output items come earlier as `response.output_item.done` events.
+ * Rebuild a complete, non-streaming Responses API body from the stream.
+ */
+export async function collapseChatgptStream(res: Response): Promise<Response> {
+  const type = res.headers.get("content-type") ?? "";
+  if (!res.ok || type.includes("application/json")) return res;
+  const text = await res.text();
+  const items: unknown[] = [];
+  let final: Record<string, any> | null = null;
+  let failure: Record<string, any> | null = null;
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("data:")) continue;
+    let e: Record<string, any>;
+    try {
+      e = JSON.parse(line.slice(5).trim());
+    } catch {
+      continue;
+    }
+    if (e.type === "response.output_item.done" && e.item) items.push(e.item);
+    else if (e.type === "response.completed" || e.type === "response.incomplete") final = e.response;
+    else if (e.type === "response.failed") failure = e.response?.error ?? { message: "The response failed" };
+    else if (e.type === "error") failure = e.error ?? e;
+  }
+  if (failure || !final) {
+    const message = failure?.message ?? (final ? "Unknown error" : "The ChatGPT stream ended without a completed response");
+    return new Response(JSON.stringify({ error: { message, type: failure?.type ?? "server_error", code: failure?.code ?? null } }), {
+      status: failure?.code === "rate_limit_exceeded" ? 429 : 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  const body = { ...final, output: Array.isArray(final.output) && final.output.length ? final.output : items };
+  return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+}
+
 export interface BuiltModel {
   model: LanguageModel;
   providerOptions: Record<string, Record<string, unknown>> | undefined;
   modelId: string;
   info: ModelInfo | null;
   streaming: boolean;
+  /** The effort actually sent for this call (Automatic resolved to a concrete level). */
+  effort: string | null;
 }
 
-export async function buildModel(db: Db, conn: LlmConnection, sel: ResolvedSelection, tier: Tier): Promise<BuiltModel> {
+/** Resolve "auto" to a concrete level for this task and model. */
+export function effectiveEffort(sel: ResolvedSelection, task: string): string | null {
+  if (sel.effort !== AUTO_EFFORT) return sel.effort;
+  return pickEffort(sel.info?.efforts ?? [], effortForTask(task));
+}
+
+export async function buildModel(db: Db, conn: LlmConnection, sel: ResolvedSelection, tier: Tier, task = ""): Promise<BuiltModel> {
   const base = connectionBaseUrl(conn);
-  const po = providerOptionsFor(conn.sdk, sel.effortKind, sel.effort);
-  const out = (model: LanguageModel, streaming = false): BuiltModel => ({ model, providerOptions: po, modelId: sel.model, info: sel.info, streaming });
+  const effort = effectiveEffort(sel, task);
+  const po = providerOptionsFor(conn.sdk, sel.effortKind, effort);
+  const out = (model: LanguageModel, streaming = false): BuiltModel => ({ model, providerOptions: po, modelId: sel.model, info: sel.info, streaming, effort });
 
   switch (conn.sdk) {
     case "env": {
@@ -114,17 +160,16 @@ export async function buildModel(db: Db, conn: LlmConnection, sel: ResolvedSelec
     case "openai":
       return out(createOpenAI({ apiKey: (await getSecret(conn.id, "api_key")) ?? "", baseURL: base }).responses(sel.model));
     case "openai-chatgpt": {
-      const provider = createOpenAI({
-        apiKey: "oauth",
-        baseURL: base,
-        fetch: oauthFetch(db, conn, (headers, body) => {
-          if (conn.accountId) headers.set("chatgpt-account-id", conn.accountId);
-          headers.set("OpenAI-Beta", "responses=experimental");
-          headers.set("originator", "codex_cli_rs");
-          return chatgptBodyRewrite(body, sel.effort);
-        }),
+      const authed = oauthFetch(db, conn, (headers, body) => {
+        if (conn.accountId) headers.set("chatgpt-account-id", conn.accountId);
+        headers.set("OpenAI-Beta", "responses=experimental");
+        headers.set("originator", "codex_cli_rs");
+        return chatgptBodyRewrite(body, effort);
       });
-      return out(provider.responses(sel.model), true);
+      // The SDK sends non-streaming requests; the backend always streams. Collapse the stream back
+      // into a regular Responses API body so the SDK's standard (non-streaming) parsing is used.
+      const provider = createOpenAI({ apiKey: "oauth", baseURL: base, fetch: (async (input, init) => collapseChatgptStream(await authed(input, init))) as FetchLike });
+      return out(provider.responses(sel.model), false);
     }
     case "anthropic":
       return out(createAnthropic({ apiKey: (await getSecret(conn.id, "api_key")) ?? "", baseURL: base })(sel.model));

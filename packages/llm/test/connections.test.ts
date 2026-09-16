@@ -142,6 +142,31 @@ describe("effort resolution", () => {
   });
 });
 
+describe("automatic effort", () => {
+  it("picks effort per task and maps it onto each model's own levels", async () => {
+    const { llm } = await load();
+    const luna = ["low", "medium", "high", "xhigh", "max"];
+    expect(llm.pickEffort(luna, llm.effortForTask("extract_profile"))).toBe("low");
+    expect(llm.pickEffort(luna, llm.effortForTask("cover_letter"))).toBe("medium");
+    expect(llm.pickEffort(luna, llm.effortForTask("tailor"))).toBe("high");
+    expect(llm.pickEffort(luna, llm.effortForTask("audit_resume"))).toBe("high");
+    expect(llm.pickEffort(["off", "on"], "low")).toBe("on");
+    expect(llm.pickEffort(["minimal", "high"], "low")).toBe("minimal");
+    expect(llm.pickEffort(["none", "high", "max"], "medium")).toBe("high");
+    expect(llm.pickEffort([], "high")).toBeNull();
+    expect(llm.effortForTask("something_new")).toBe("medium");
+
+    const conn = { sdk: "openai-chatgpt", kind: "openai-chatgpt", label: "c", catalogProviderId: "openai", selections: { main: { model: "gpt-5.6-luna", effort: "auto" }, fast: null, effortByModel: {} }, modelsCache: [{ id: "gpt-5.6-luna", name: "Luna", contextWindow: null, reasoning: true, effortKind: "effort", efforts: luna, defaultEffort: "medium", costIn: null, costOut: null, costCachedIn: null, source: "live" }] } as any;
+    const sel = llm.resolveSelection(conn, "main");
+    expect(sel.effort).toBe("auto");
+    expect(llm.effectiveEffort(sel, "extract_requirements")).toBe("low");
+    expect(llm.effectiveEffort(sel, "tailor")).toBe("high");
+    // An explicit choice is used for every task; a never-set effort means Automatic.
+    expect(llm.effectiveEffort(llm.resolveSelection({ ...conn, selections: { ...conn.selections, main: { model: "gpt-5.6-luna", effort: "xhigh" } } }, "main"), "extract_profile")).toBe("xhigh");
+    expect(llm.resolveSelection({ ...conn, selections: { ...conn.selections, main: { model: "gpt-5.6-luna", effort: null } } }, "main").effort).toBe("auto");
+  });
+});
+
 describe("catalog", () => {
   it("resolves provider support from the bundled snapshot", async () => {
     const { llm } = await load();
