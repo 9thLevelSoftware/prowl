@@ -20,7 +20,7 @@ Requirements: Node 22+, pnpm 9, Google Chrome (recommended), Windows, macOS, or 
 
 ```bash
 pnpm install
-pnpm setup          # creates .env, installs Chromium for PDFs, creates the database
+pnpm bootstrap      # creates .env, installs Chromium for PDFs, creates the database
 pnpm dev            # web UI on http://localhost:3000 plus the background worker
 ```
 
@@ -55,7 +55,7 @@ The ChatGPT sign-in path is untested against the live service. Using subscriptio
 | `pnpm test` | Unit and integration tests. The applier tests use a local mock ATS; no network or AI needed. |
 | `pnpm test:golden` | Real-AI tests for extraction fidelity, zero fabrications, and whether the auditor catches injected fabrications. Uses your configured provider. |
 | `pnpm typecheck` | Type-checks every package |
-| `pnpm seed:demo` | Loads demo data without any AI calls. Use `JH_DATA_DIR=./data-demo` to keep it separate. |
+| `pnpm seed:demo` then `pnpm dev:demo` | Loads demo data into `./data-demo` without any AI calls and runs the app against it, separate from your real data. |
 | `pnpm db:generate` | Generates a migration after changing `packages/db/src/schema.ts` |
 
 ## Project layout

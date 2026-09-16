@@ -19,8 +19,9 @@
     "test:watch": "vitest",
     "test:golden": "cross-env JH_GOLDEN=1 vitest run --config vitest.golden.config.ts",
     "lint": "eslint .",
-    "seed:demo": "tsx --env-file-if-exists=.env scripts/seed-demo.ts",
-    "setup": "node scripts/setup.mjs"
+    "seed:demo": "cross-env JH_DATA_DIR=./data-demo tsx --env-file-if-exists=.env scripts/seed-demo.ts",
+    "bootstrap": "node scripts/setup.mjs",
+    "dev:demo": "cross-env JH_DATA_DIR=./data-demo pnpm dev"
   },
   "devDependencies": {
     "@jh/core": "workspace:*",

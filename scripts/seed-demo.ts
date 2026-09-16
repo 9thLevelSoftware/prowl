@@ -4,8 +4,8 @@
  * override, and PDF rendering code; only the model outputs (requirements, tailoring, audit verdicts)
  * are hand-written.
  *
- *   pnpm seed:demo            # adds demo data to the configured database
- *   JH_DATA_DIR=./data-demo pnpm seed:demo   # keep it separate from real data
+ *   pnpm seed:demo      # writes demo data to ./data-demo
+ *   pnpm dev:demo       # runs the app against it
  */
 import {
   getDb,

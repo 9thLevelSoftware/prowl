@@ -80,21 +80,27 @@ export default async function ApplicationDetail({ params }: { params: Promise<{ 
                 </div>
                 <div>
                   <dt className="text-[12px] text-muted">Submitted</dt>
-                  <dd>{app.submittedAt ? formatDateTime(app.submittedAt) : app.dryRun && app.formSnapshot ? "Dry run only (not submitted)" : "Not yet"}</dd>
+                  <dd>
+                    {app.submittedAt
+                      ? formatDateTime(app.submittedAt)
+                      : app.status === "needs_input" && app.dryRun && app.formSnapshot?.fields.length
+                        ? "Dry run completed (not submitted)"
+                        : "Not submitted"}
+                  </dd>
                 </div>
                 <div>
-                  <dt className="text-[12px] text-muted">Applied through</dt>
+                  <dt className="text-[12px] text-muted">{app.submittedAt ? "Applied through" : "Application page"}</dt>
                   <dd className="break-all">
                     {job.atsType} ·{" "}
-                    <a className="underline" href={app.formSnapshot?.url ?? job.applyUrl} target="_blank" rel="noreferrer">
-                      {app.formSnapshot?.url ?? job.applyUrl}
+                    <a className="underline" href={app.formSnapshot?.url || job.applyUrl} target="_blank" rel="noreferrer">
+                      {app.formSnapshot?.url || job.applyUrl}
                     </a>
                   </dd>
                 </div>
               </dl>
               <dl className="space-y-1.5">
                 <div>
-                  <dt className="text-[12px] text-muted">Resume sent</dt>
+                  <dt className="text-[12px] text-muted">{app.submittedAt ? "Resume sent" : "Tailored resume"}</dt>
                   <dd>
                     {resumePath ? (
                       <a className="underline" href={fileUrl(resumePath)!} target="_blank" rel="noreferrer">
@@ -107,7 +113,7 @@ export default async function ApplicationDetail({ params }: { params: Promise<{ 
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[12px] text-muted">Cover letter sent</dt>
+                  <dt className="text-[12px] text-muted">{app.submittedAt ? "Cover letter sent" : "Cover letter"}</dt>
                   <dd>
                     {coverPath ? (
                       <a className="underline" href={fileUrl(coverPath)!} target="_blank" rel="noreferrer">
