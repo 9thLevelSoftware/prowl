@@ -319,6 +319,70 @@ export const llmCalls = sqliteTable(
   (t) => [index("llm_calls_at").on(t.userId, t.at)],
 );
 
+/* ============================ AI connections ============================ */
+
+export type ConnectionKind = "openai-chatgpt" | "gemini-oauth" | "api-key" | "openai-compatible" | "env";
+export type ConnectionSdk = "openai" | "openai-chatgpt" | "anthropic" | "google" | "openai-compatible" | "env";
+export type ConnectionStatus = "untested" | "ok" | "error" | "needs_signin";
+
+export interface ModelSelection {
+  model: string;
+  effort: string | null;
+}
+
+export interface ConnectionSelections {
+  main: ModelSelection | null;
+  fast: ModelSelection | null;
+  /** Last effort chosen per model on this connection, restored when that model is picked again. */
+  effortByModel: Record<string, string>;
+}
+
+export type EffortKind = "effort" | "budget" | "toggle" | "none";
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  contextWindow: number | null;
+  reasoning: boolean;
+  effortKind: EffortKind;
+  efforts: string[];
+  defaultEffort: string | null;
+  costIn: number | null;
+  costOut: number | null;
+  costCachedIn: number | null;
+  /** "live" when the provider's model list returned it, "catalog" when known only from models.dev. */
+  source: "live" | "catalog";
+}
+
+export const llmConnections = sqliteTable("llm_connections", {
+  id: id(),
+  userId: userId(),
+  kind: text("kind").$type<ConnectionKind>().notNull(),
+  sdk: text("sdk").$type<ConnectionSdk>().notNull(),
+  catalogProviderId: text("catalog_provider_id"),
+  label: text("label").notNull(),
+  baseUrl: text("base_url"),
+  authType: text("auth_type").$type<"oauth" | "api_key" | "none" | "env">().notNull(),
+  accountLabel: text("account_label"),
+  accountId: text("account_id"),
+  keyHint: text("key_hint"),
+  tokenExpiresAt: text("token_expires_at"),
+  refreshLockUntil: text("refresh_lock_until"),
+  googleProject: text("google_project"),
+  googleClientId: text("google_client_id"),
+  selections: text("selections", { mode: "json" }).$type<ConnectionSelections>().notNull(),
+  modelsCache: text("models_cache", { mode: "json" }).$type<ModelInfo[]>(),
+  modelsFetchedAt: text("models_fetched_at"),
+  modelsError: text("models_error"),
+  status: text("status").$type<ConnectionStatus>().notNull().default("untested"),
+  lastError: text("last_error"),
+  lastTestedAt: text("last_tested_at"),
+  concurrency: integer("concurrency").notNull().default(2),
+  ...timestamps,
+});
+
+export type LlmConnection = typeof llmConnections.$inferSelect;
+
 export const workerHeartbeats = sqliteTable("worker_heartbeats", {
   id: text("id").primaryKey(),
   startedAt: text("started_at").notNull(),

@@ -283,6 +283,90 @@ export function submittedToday(db: Db, userId = LOCAL_USER_ID): number {
   return row?.n ?? 0;
 }
 
+/* ========================== AI connections ======================== */
+
+export const ACTIVE_CONNECTION_KEY = "llm.activeConnectionId";
+
+export function emptySelections(): s.ConnectionSelections {
+  return { main: null, fast: null, effortByModel: {} };
+}
+
+export function listConnections(db: Db, userId = LOCAL_USER_ID): s.LlmConnection[] {
+  return db.select().from(s.llmConnections).where(eq(s.llmConnections.userId, userId)).orderBy(asc(s.llmConnections.createdAt)).all();
+}
+
+export function getConnection(db: Db, id: string): s.LlmConnection | undefined {
+  return db.select().from(s.llmConnections).where(eq(s.llmConnections.id, id)).get();
+}
+
+export function createConnection(db: Db, values: Omit<typeof s.llmConnections.$inferInsert, "selections"> & { selections?: s.ConnectionSelections }): s.LlmConnection {
+  return db
+    .insert(s.llmConnections)
+    .values({ ...values, selections: values.selections ?? emptySelections() })
+    .returning()
+    .get();
+}
+
+export function updateConnection(db: Db, id: string, patch: Partial<typeof s.llmConnections.$inferInsert>): s.LlmConnection {
+  const row = db.update(s.llmConnections).set(patch).where(eq(s.llmConnections.id, id)).returning().get();
+  if (!row) throw new Error(`Connection ${id} not found`);
+  return row;
+}
+
+export function deleteConnectionRow(db: Db, id: string, userId = LOCAL_USER_ID): void {
+  db.delete(s.llmConnections).where(eq(s.llmConnections.id, id)).run();
+  if (getSetting<string | null>(db, ACTIVE_CONNECTION_KEY, null, userId) === id) {
+    const next = listConnections(db, userId)[0];
+    setSetting(db, ACTIVE_CONNECTION_KEY, next?.id ?? null, userId);
+  }
+}
+
+export function getActiveConnection(db: Db, userId = LOCAL_USER_ID): s.LlmConnection | undefined {
+  const id = getSetting<string | null>(db, ACTIVE_CONNECTION_KEY, null, userId);
+  return (id ? getConnection(db, id) : undefined) ?? listConnections(db, userId)[0];
+}
+
+export function setActiveConnection(db: Db, id: string, userId = LOCAL_USER_ID): void {
+  if (!getConnection(db, id)) throw new Error("Connection not found");
+  setSetting(db, ACTIVE_CONNECTION_KEY, id, userId);
+}
+
+/**
+ * Save the model and effort for one slot. The effort is also remembered per model, so picking
+ * the same model again later (on this connection) restores it.
+ */
+export function saveSelection(db: Db, id: string, slot: "main" | "fast", model: string, effort: string | null): s.ConnectionSelections {
+  const conn = getConnection(db, id);
+  if (!conn) throw new Error("Connection not found");
+  const current = { ...emptySelections(), ...conn.selections };
+  const next: s.ConnectionSelections = {
+    ...current,
+    [slot]: { model, effort },
+    effortByModel: { ...current.effortByModel, ...(effort ? { [model]: effort } : {}) },
+  };
+  updateConnection(db, id, { selections: next });
+  return next;
+}
+
+/**
+ * Cross-process lock for OAuth token refresh. Refresh tokens can be single-use, so the web app
+ * and the worker must never refresh the same connection at the same moment.
+ */
+export function tryLockRefresh(db: Db, id: string, ms = 30_000): boolean {
+  const now = new Date().toISOString();
+  const until = new Date(Date.now() + ms).toISOString();
+  const res = db
+    .update(s.llmConnections)
+    .set({ refreshLockUntil: until })
+    .where(and(eq(s.llmConnections.id, id), sql`(${s.llmConnections.refreshLockUntil} is null or ${s.llmConnections.refreshLockUntil} < ${now})`))
+    .run();
+  return res.changes === 1;
+}
+
+export function unlockRefresh(db: Db, id: string): void {
+  db.update(s.llmConnections).set({ refreshLockUntil: null }).where(eq(s.llmConnections.id, id)).run();
+}
+
 /* ============================== Misc ============================== */
 
 export function beat(db: Db, workerId: string, startedAt: string, currentTask: string | null): void {

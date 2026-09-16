@@ -64,12 +64,28 @@ Only Greenhouse, Lever, and Ashby submit automatically. Other sites go to Needs 
 
 ## LLM layer
 
-`packages/llm` wraps the Vercel AI SDK so one interface serves Gemini, OpenAI, ChatGPT, and Anthropic.
+`packages/llm` wraps the Vercel AI SDK so one interface serves every provider.
 
-- OAuth providers use `bearerFetch`, which injects a token from `JH_LLM_ACCESS_TOKEN`, `JH_LLM_TOKEN_CMD`, or `JH_LLM_TOKEN_FILE` and retries once on 401 with a refreshed token.
-- The ChatGPT backend requires streaming, `store: false`, and top-level `instructions`. The request body is rewritten to match.
-- A semaphore caps concurrency.
-- Every call is recorded in `llm_calls` with tokens, duration, errors, and estimated cost for API-key providers.
+**Connections** (`llm_connections` table). Each row holds one provider, one credential, and saved choices: `selections.main` and `selections.fast` store `{ model, effort }`, and `selections.effortByModel` stores the last effort per model. The active connection id lives in `settings` under `llm.activeConnectionId`. `LlmClient.reload()` resolves it before each worker task, so changes apply to the next task.
+
+| SDK | Used for | Effort sent as |
+| --- | --- | --- |
+| `openai` | OpenAI API keys (Responses API) | `providerOptions.openai.reasoningEffort` |
+| `openai-chatgpt` | ChatGPT sign-in, `chatgpt.com/backend-api/codex` | body rewrite: `reasoning.effort`, `store: false`, `stream: true`, `instructions` |
+| `anthropic` | Anthropic keys | `anthropic.effort`, or `thinking` budgets for older models |
+| `google` | Gemini keys and Google sign-in | `thinkingConfig.thinkingLevel` or `thinkingBudget` |
+| `openai-compatible` | Catalog providers with an OpenAI-style API, local servers, custom endpoints | `reasoning_effort` |
+
+- **Catalog** (`catalog.ts`): models.dev data for provider base URLs, model names, context sizes, prices, and effort options. It is cached in the data dir, refreshed daily, and falls back to the bundled `catalog-snapshot.json.gz`. Refresh the snapshot with `node scripts/update-catalog.mjs`.
+- **Models** (`models.ts`): the live model list from the provider (ChatGPT `/models` with `supported_reasoning_levels`, OpenAI, Anthropic, Gemini, or `{base}/models`), merged with catalog metadata into `ModelInfo` and cached on the connection. When the live list fails, catalog models are shown with the error.
+- **Sign-in** (`oauth/`): PKCE plus a one-shot loopback server on 127.0.0.1.
+  - ChatGPT uses the Codex OAuth client and its registered `http://localhost:1455/auth/callback`.
+  - Gemini uses the user's own Desktop OAuth client on a random loopback port.
+  - A connection is created only after sign-in succeeds.
+  - Access tokens refresh 2 minutes before expiry and once on a 401. Refreshes are serialized across the web and worker processes with a DB lock (`refresh_lock_until`), because refresh tokens rotate.
+- **Secrets** (`secrets.ts`): Windows Credential Manager caps entries at 1,280 characters, which is too short for OAuth tokens. So one random 256-bit master key is stored in the OS keychain, and secrets are AES-256-GCM encrypted in `data/secrets.json`. Without a keychain, the master key is kept in `data/secrets.key` and Settings shows a warning.
+- **Legacy:** `.env` variables create a read-only "From .env" connection only when no connection exists and credentials are set.
+- A semaphore caps concurrency per connection. Every call is recorded in `llm_calls` with the model and effort, tokens, duration, errors, and estimated cost from catalog prices. Cost is not tracked for ChatGPT sign-in.
 
 Prompts keep a stable prefix (system prompt plus fact ledger) ahead of per-job content, so providers with implicit prompt caching reuse it across jobs.
 

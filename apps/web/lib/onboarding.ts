@@ -1,6 +1,5 @@
 import "server-only";
-import { and, eq, getActiveProfile, getPreferences, getSetting, schema as s, sql } from "@jh/db";
-import { LLM_SETTINGS_KEY } from "@jh/llm";
+import { and, eq, getActiveConnection, getActiveProfile, getPreferences, schema as s, sql } from "@jh/db";
 import { db, USER } from "./server";
 
 export interface Step {
@@ -16,8 +15,7 @@ export function onboardingSteps(): Step[] {
   const d = db();
   const profile = getActiveProfile(d, USER);
   const prefs = getPreferences(d, USER);
-  const llmConfigured = !!getSetting(d, LLM_SETTINGS_KEY, null) || !!process.env.JH_LLM_PROVIDER;
-  const llmTested = (d.select({ n: sql<number>`count(*)` }).from(s.llmCalls).where(and(eq(s.llmCalls.userId, USER), eq(s.llmCalls.ok, true))).get()?.n ?? 0) > 0;
+  const connection = getActiveConnection(d, USER);
   const confirmedSkills = profile?.data.skills.filter((x) => x.confirmed).length ?? 0;
   const sources = d.select({ n: sql<number>`count(*)` }).from(s.jobSources).where(eq(s.jobSources.userId, USER)).get()?.n ?? 0;
   const answers = d.select({ n: sql<number>`count(*)` }).from(s.qaBank).where(and(eq(s.qaBank.userId, USER), eq(s.qaBank.approved, true))).get()?.n ?? 0;
@@ -26,8 +24,8 @@ export function onboardingSteps(): Step[] {
     {
       key: "llm",
       title: "Connect an AI provider",
-      description: "Job Hunter uses your ChatGPT or Gemini sign-in (or an API key) to read resumes, analyze postings, and write tailored documents.",
-      done: llmConfigured && llmTested,
+      description: "Sign in with ChatGPT or Google, or add an API key from almost any provider. It reads resumes, analyzes postings, and writes tailored documents.",
+      done: connection?.status === "ok",
       href: "/settings",
       cta: "Open settings",
     },

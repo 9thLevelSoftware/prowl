@@ -26,21 +26,22 @@ pnpm dev            # web UI on http://localhost:3000 plus the background worker
 
 Then open http://localhost:3000 and follow **Get started**.
 
-### AI provider credentials
+### AI connections
 
-Set `JH_LLM_PROVIDER` in `.env`. Credentials are read from the environment and never stored in the database.
+Open **Settings → AI connections → Add connection**. You can add several and choose which one is in use.
 
-| Provider | Setting | How to authenticate |
-| --- | --- | --- |
-| Gemini, Google sign-in | `gemini-oauth` | Set `JH_LLM_TOKEN_CMD` to a command that prints an access token, for example `gcloud auth application-default print-access-token`. Set `JH_GOOGLE_PROJECT` to a project with the Generative Language API enabled. |
-| ChatGPT sign-in (experimental) | `chatgpt-oauth` | Set `JH_LLM_TOKEN_FILE` to the auth file written by a ChatGPT CLI login, for example `~/.codex/auth.json`. |
-| Gemini API key | `gemini` | `GEMINI_API_KEY` |
-| OpenAI API key | `openai` | `OPENAI_API_KEY` |
-| Anthropic API key | `anthropic` | `ANTHROPIC_API_KEY` |
+| Connection | How it signs in |
+| --- | --- |
+| ChatGPT | **Sign in with ChatGPT** on OpenAI's own page, the same sign-in Codex uses. Uses your ChatGPT plan. The sign-in returns to this computer on port 1455. |
+| Gemini (Google sign-in) | Google's official Gemini API OAuth. A one-time guide walks you through creating a Desktop OAuth client in your Google Cloud project, then **Sign in with Google**. |
+| API key providers | OpenAI, Gemini, Anthropic, OpenRouter, xAI, Mistral, DeepSeek, Groq, and about 200 more from the [models.dev](https://models.dev) catalog. |
+| Local and custom | Ollama, LM Studio, or any OpenAI-compatible endpoint. |
 
-Models can be overridden with `JH_MODEL_SMART` and `JH_MODEL_FAST`, or on the Settings page. Use **Test connection** on Settings to verify access.
+After connecting, pick a **main model** and a **fast model**. Each dropdown lists the provider's live models. The **reasoning effort** menu shows only the levels that model supports, such as Low through Extra high. Choices are saved per connection: switching to another connection and back restores them, and each model remembers its last effort.
 
-The ChatGPT sign-in path is untested against the live service. Using subscription sign-ins from third-party apps may be limited or restricted by the provider's terms.
+API keys and sign-in tokens are encrypted on this computer with a key held in the system keychain. The ChatGPT sign-in is subject to OpenAI's terms and counts against your plan's limits.
+
+Legacy `.env` configuration (`JH_LLM_PROVIDER` plus credentials) still works when no connection has been added.
 
 ### Optional
 

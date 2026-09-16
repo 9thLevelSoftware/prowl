@@ -2,8 +2,7 @@
 
 import fs from "node:fs";
 import { revalidatePath } from "next/cache";
-import { enqueue, eq, schema as s, setSetting, getSetting } from "@jh/db";
-import { getLlm, LLM_SETTINGS_KEY, isProviderId, type ProviderConfig } from "@jh/llm";
+import { enqueue, eq, schema as s } from "@jh/db";
 import { SourceType, dataDir } from "@jh/shared";
 import { getAdapter } from "@jh/sources";
 import { db, USER, worker } from "../server";
@@ -88,41 +87,21 @@ export async function deleteQaAction(id: string): Promise<ActionResult> {
 
 /* ================================ Settings ============================== */
 
-export async function saveLlmSettingsAction(input: Partial<ProviderConfig>): Promise<ActionResult> {
-  try {
-    if (input.provider && !isProviderId(input.provider)) throw new Error("Unknown provider");
-    const current = getSetting<Partial<ProviderConfig>>(db(), LLM_SETTINGS_KEY, {});
-    const next: Partial<ProviderConfig> = { ...current, ...input };
-    for (const k of Object.keys(next) as (keyof ProviderConfig)[]) if (next[k] === "" || next[k] === undefined) delete next[k];
-    if (next.concurrency !== undefined) next.concurrency = Math.min(8, Math.max(1, Number(next.concurrency) || 2));
-    setSetting(db(), LLM_SETTINGS_KEY, next);
-    getLlm(db()).reload();
-    return done("Saved. The worker picks this up on its next task.");
-  } catch (err) {
-    return fail(err);
-  }
-}
-
-export async function testLlmAction(): Promise<ActionResult<{ provider: string; model: string; reply?: string; ms: number }>> {
-  const llm = getLlm(db());
-  llm.reload();
-  const r = await llm.ping();
-  return r.ok ? { ok: true, data: r, message: `Connected to ${r.provider} (${r.model}) in ${r.ms} ms` } : { ok: false, error: `${r.provider} (${r.model}): ${r.error}` };
-}
-
 export async function deleteAllDataAction(confirmation: string): Promise<ActionResult> {
   try {
     if (confirmation !== "DELETE") throw new Error('Type DELETE to confirm');
     await worker("/browser/close", { method: "POST" }).catch(() => undefined);
     const d = db();
     d.transaction((tx) => {
-      for (const t of [s.applicationEvents, s.applications, s.coverLetters, s.tailoredResumes, s.jobMatches, s.jobs, s.jobSources, s.profileFacts, s.profiles, s.preferences, s.qaBank, s.queueTasks, s.pipelineRuns, s.llmCalls, s.settings]) {
+      for (const t of [s.applicationEvents, s.applications, s.coverLetters, s.tailoredResumes, s.jobMatches, s.jobs, s.jobSources, s.profileFacts, s.profiles, s.preferences, s.qaBank, s.queueTasks, s.pipelineRuns, s.llmCalls, s.llmConnections, s.settings]) {
         tx.delete(t).run();
       }
     });
     for (const dir of ["documents", "evidence", "browser-profile"]) {
       fs.rmSync(`${dataDir()}/${dir}`, { recursive: true, force: true });
     }
+    // Encrypted API keys and sign-in tokens.
+    fs.rmSync(`${dataDir()}/secrets.json`, { force: true });
     return done("All local data deleted");
   } catch (err) {
     return fail(err);

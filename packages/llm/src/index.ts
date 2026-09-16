@@ -1,4 +1,11 @@
 export * from "./auth";
-export * from "./providers";
+export { PROVIDERS, isProviderId, resolveProviderConfig, type ProviderId, type Tier } from "./providers";
 export * from "./client";
+export * from "./catalog";
+export * from "./effort";
+export * from "./models";
+export * from "./runtime";
+export * from "./secrets";
+export * from "./oauth/flows";
+export { OPENAI_CALLBACK_PORT } from "./oauth/openai";
 export type { ModelMessage } from "ai";

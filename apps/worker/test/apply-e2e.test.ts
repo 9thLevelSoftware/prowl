@@ -10,9 +10,11 @@ process.env.JH_DATA_DIR = tmp;
 process.env.JH_BROWSER_CHANNEL = "chromium";
 process.env.JH_LLM_PROVIDER = "openai";
 process.env.OPENAI_API_KEY = "";
+process.env.JH_SECRETS_NO_KEYCHAIN = "1";
+process.env.JH_CATALOG_OFFLINE = "1";
 
 const { openDb, runMigrations, saveProfileVersion, savePreferences, ensureApplication, transitionApplication, claimTask, completeTask, schema: s, eq } = await import("@jh/db");
-const { LlmClient, resolveProviderConfig } = await import("@jh/llm");
+const { LlmClient } = await import("@jh/llm");
 const { ProfileData } = await import("@jh/shared");
 const { buildFacts, approveApplication, ReviewBlockedError } = await import("@jh/core");
 const { renderResumeFiles, renderCoverLetterFiles, resolveBaseline, resolveCoverLetter, closeRenderer } = await import("@jh/documents");
@@ -22,7 +24,7 @@ const { startMockAts } = await import("../../../packages/applier/test/mock-ats")
 
 const db = openDb(path.join(tmp, "e2e.sqlite"));
 runMigrations(db);
-const llm = new LlmClient(db, resolveProviderConfig({ provider: "openai", concurrency: 1 }));
+const llm = new LlmClient(db);
 let mock: Awaited<ReturnType<typeof startMockAts>>;
 let applicationId = "";
 

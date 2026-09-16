@@ -125,7 +125,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   try {
     if (req.method === "GET" && url.pathname === "/health") {
-      return json(res, 200, { ok: true, workerId: WORKER_ID, startedAt: STARTED, running: [...running.values()], queue: queueStats(db), provider: llm.config.provider });
+      return json(res, 200, { ok: true, workerId: WORKER_ID, startedAt: STARTED, running: [...running.values()], queue: queueStats(db), provider: llm.config.provider, models: { main: llm.config.smartModel, mainEffort: llm.config.smartEffort, fast: llm.config.fastModel, fastEffort: llm.config.fastEffort } });
     }
     if (req.method === "GET" && url.pathname === "/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive", "access-control-allow-origin": "*" });
@@ -174,7 +174,7 @@ async function main() {
   scheduleDiscovery();
   const heartbeat = setInterval(() => beat(db, WORKER_ID, STARTED, [...running.values()].join(", ") || null), 5000);
   beat(db, WORKER_ID, STARTED, null);
-  log.info(`LLM provider: ${llm.config.provider} (smart=${llm.config.smartModel}, fast=${llm.config.fastModel})`);
+  log.info(`AI connection: ${llm.config.provider} (main=${llm.config.smartModel || "not chosen"}${llm.config.smartEffort ? ` ${llm.config.smartEffort}` : ""}, fast=${llm.config.fastModel || "not chosen"})`);
 
   const shutdown = async () => {
     if (stopping) return;
