@@ -296,4 +296,4 @@ export function latestHeartbeat(db: Db) {
   return db.select().from(s.workerHeartbeats).orderBy(desc(s.workerHeartbeats.lastBeatAt)).limit(1).get();
 }
 
-export { asc, desc, eq, and, inArray, sql };
+export { asc, desc, eq, ne, and, or, inArray, sql, gte, lte, gt, lt, like, isNull, isNotNull } from "drizzle-orm";

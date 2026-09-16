@@ -1,0 +1,59 @@
+import "server-only";
+import path from "node:path";
+import { getDb, runMigrations, latestHeartbeat, schema as s, sql, eq, and, type Db } from "@jh/db";
+import { LOCAL_USER_ID, WORKER_URL, dataDir } from "@jh/shared";
+
+const g = globalThis as unknown as { __jhMigrated?: boolean };
+
+/** DB handle for server components and actions. Migrations run once per process. */
+export function db(): Db {
+  const d = getDb();
+  if (!g.__jhMigrated) {
+    runMigrations(d);
+    g.__jhMigrated = true;
+  }
+  return d;
+}
+
+export const USER = LOCAL_USER_ID;
+
+export async function worker<T = unknown>(pathname: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${WORKER_URL}${pathname}`, { ...init, cache: "no-store", signal: AbortSignal.timeout(60_000) });
+  const body = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error(body.error ?? `Worker returned ${res.status}`);
+  return body;
+}
+
+export function workerOnline(): { online: boolean; lastBeatAt: string | null; currentTask: string | null } {
+  const hb = latestHeartbeat(db());
+  const online = !!hb && Date.now() - new Date(hb.lastBeatAt).getTime() < 20_000;
+  return { online, lastBeatAt: hb?.lastBeatAt ?? null, currentTask: hb?.currentTask ?? null };
+}
+
+export function navCounts() {
+  const rows = db()
+    .select({ status: s.applications.status, n: sql<number>`count(*)` })
+    .from(s.applications)
+    .where(eq(s.applications.userId, USER))
+    .groupBy(s.applications.status)
+    .all();
+  const by = Object.fromEntries(rows.map((r) => [r.status, r.n])) as Record<string, number>;
+  const newJobs = db()
+    .select({ n: sql<number>`count(*)` })
+    .from(s.jobMatches)
+    .where(and(eq(s.jobMatches.userId, USER), eq(s.jobMatches.status, "new")))
+    .get();
+  return { review: by.ready_for_review ?? 0, needsInput: by.needs_input ?? 0, jobs: newJobs?.n ?? 0 };
+}
+
+/** Resolve a stored path for download, refusing anything outside the data directory. */
+export function safeDataFile(p: string): string | null {
+  const root = path.resolve(dataDir());
+  const abs = path.resolve(path.isAbsolute(p) ? p : path.join(root, p));
+  return abs.startsWith(root + path.sep) ? abs : null;
+}
+
+export function fileUrl(p: string | null | undefined, download = false): string | null {
+  if (!p) return null;
+  return `/api/files?p=${encodeURIComponent(p)}${download ? "&download=1" : ""}`;
+}
