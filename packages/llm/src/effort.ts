@@ -55,6 +55,34 @@ export const TASK_EFFORT: Record<string, EffortIntent> = {
   audit_cover_edit: "high",
 };
 
+/** Plain-language descriptions of AI tasks, for status displays. */
+export const TASK_LABELS: Record<string, string> = {
+  extract_profile: "Reading your resume",
+  extract_requirements: "Analyzing a job posting",
+  careerpage_links: "Reading a career page",
+  vision_form_check: "Checking a filled-in application",
+  connection_test: "Testing the AI connection",
+  ping: "Testing the AI connection",
+  builder_bullets: "Drafting resume bullets",
+  builder_summary: "Drafting your summary",
+  form_answers: "Drafting application answers",
+  cover_letter: "Writing a cover letter",
+  tailor: "Tailoring a resume",
+  audit: "Fact-checking",
+  audit_resume: "Fact-checking a tailored resume",
+  audit_cover: "Fact-checking a cover letter",
+  audit_resume_edit: "Fact-checking your resume edits",
+  audit_cover_edit: "Fact-checking your cover letter edits",
+};
+
+export const WORKER_TASK_LABELS: Record<string, string> = {
+  discover_all: "Starting job discovery",
+  discover_source: "Finding new jobs",
+  process_job: "Scoring jobs",
+  tailor: "Tailoring an application",
+  apply: "Filling out an application",
+};
+
 export function effortForTask(task: string): EffortIntent {
   return TASK_EFFORT[task] ?? "medium";
 }

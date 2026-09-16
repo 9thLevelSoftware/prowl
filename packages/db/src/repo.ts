@@ -367,6 +367,38 @@ export function unlockRefresh(db: Db, id: string): void {
   db.update(s.llmConnections).set({ refreshLockUntil: null }).where(eq(s.llmConnections.id, id)).run();
 }
 
+/* ============================ AI activity ========================= */
+
+export function startActivity(db: Db, values: Omit<typeof s.aiActivity.$inferInsert, "pid"> & { pid?: number }): string {
+  const row = db
+    .insert(s.aiActivity)
+    .values({ ...values, pid: values.pid ?? process.pid })
+    .returning({ id: s.aiActivity.id })
+    .get();
+  return row.id;
+}
+
+export function endActivity(db: Db, id: string): void {
+  db.delete(s.aiActivity).where(eq(s.aiActivity.id, id)).run();
+}
+
+/**
+ * Calls in progress. Rows left behind by a crashed or restarted process are ignored after
+ * `maxAgeMs` (the AI call timeout) and removed.
+ */
+export function listActivity(db: Db, maxAgeMs: number, userId = LOCAL_USER_ID): s.AiActivity[] {
+  const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+  db.delete(s.aiActivity).where(lte(s.aiActivity.startedAt, cutoff)).run();
+  return db.select().from(s.aiActivity).where(eq(s.aiActivity.userId, userId)).orderBy(asc(s.aiActivity.startedAt)).all();
+}
+
+/** On process start, drop rows from a previous run of the same process type. */
+export function clearOrphanActivity(db: Db, processKind: "web" | "worker" | "other"): void {
+  db.delete(s.aiActivity)
+    .where(and(eq(s.aiActivity.process, processKind), sql`${s.aiActivity.pid} != ${process.pid}`))
+    .run();
+}
+
 /* ============================== Misc ============================== */
 
 export function beat(db: Db, workerId: string, startedAt: string, currentTask: string | null): void {

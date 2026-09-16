@@ -15,6 +15,13 @@
       "when": 1789592763550,
       "tag": "0001_llm_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789596701804,
+      "tag": "0002_ai_activity",
+      "breakpoints": true
     }
   ]
 }

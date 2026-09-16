@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "./ui";
+import { ActivityStatus } from "./activity-status";
 
 const ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -69,13 +70,7 @@ export function Nav({ counts, worker }: { counts: Record<string, number>; worker
           </Link>
         );
       })}
-      <div className="mt-auto rounded-md border border-border px-2.5 py-2 text-[12px]">
-        <div className="flex items-center gap-1.5">
-          <span className={cn("size-2 rounded-full", worker.online ? "bg-ok" : "bg-bad")} />
-          <span className="font-medium">{worker.online ? "Worker running" : "Worker offline"}</span>
-        </div>
-        <p className="mt-0.5 truncate text-muted">{worker.online ? (worker.currentTask ?? "Idle") : "Run pnpm dev to start it"}</p>
-      </div>
+      <ActivityStatus initialWorker={worker} />
     </nav>
   );
 }

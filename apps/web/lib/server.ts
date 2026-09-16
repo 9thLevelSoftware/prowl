@@ -3,14 +3,15 @@ import path from "node:path";
 import { getDb, runMigrations, latestHeartbeat, schema as s, sql, eq, and, type Db } from "@jh/db";
 import { LOCAL_USER_ID, WORKER_URL, dataDir } from "@jh/shared";
 
-const g = globalThis as unknown as { __jhMigrated?: boolean };
+// Module-level (not global) so a hot reload with new migrations applies them.
+let migrated = false;
 
 /** DB handle for server components and actions. Migrations run once per process. */
 export function db(): Db {
   const d = getDb();
-  if (!g.__jhMigrated) {
+  if (!migrated) {
     runMigrations(d);
-    g.__jhMigrated = true;
+    migrated = true;
   }
   return d;
 }

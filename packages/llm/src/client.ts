@@ -1,6 +1,6 @@
 import { generateObject, generateText, streamObject, streamText, type ModelMessage } from "ai";
 import type { z } from "zod";
-import { createConnection, getDb, listConnections, schema, updateConnection, type Db, type LlmConnection } from "@jh/db";
+import { clearOrphanActivity, createConnection, endActivity, getDb, listConnections, schema, startActivity, updateConnection, type Db, type LlmConnection } from "@jh/db";
 import { LOCAL_USER_ID, logger } from "@jh/shared";
 import { isProviderId, type Tier } from "./providers";
 import { buildModel, resolveRuntime, resolveSelection, type BuiltModel, type Runtime } from "./runtime";
@@ -21,7 +21,13 @@ export interface CallContext {
 }
 
 /** Upper bound for one AI call, so a stuck provider can never leave the UI waiting forever. */
-const CALL_TIMEOUT_MS = Number(process.env.JH_LLM_TIMEOUT_MS ?? 15 * 60_000);
+export const CALL_TIMEOUT_MS = Number(process.env.JH_LLM_TIMEOUT_MS ?? 15 * 60_000);
+
+export function processKind(): "web" | "worker" | "other" {
+  if (process.env.JH_PROCESS === "worker") return "worker";
+  if (process.env.NEXT_RUNTIME) return "web";
+  return "other";
+}
 
 function callSignal(ctx: { abortSignal?: AbortSignal }): AbortSignal {
   const timeout = AbortSignal.timeout(CALL_TIMEOUT_MS);
@@ -94,6 +100,11 @@ export class LlmClient {
   private runtime: Runtime | null = null;
 
   constructor(private readonly db: Db) {
+    try {
+      clearOrphanActivity(db, processKind());
+    } catch {
+      /* table may not exist yet */
+    }
     this.reload();
   }
 
@@ -163,13 +174,42 @@ export class LlmClient {
     }
   }
 
+  /** Mark a call as in progress so the UI can show what the AI is doing. Never throws. */
+  private begin(ctx: CallContext, built: BuiltModel & { conn: LlmConnection }): string | null {
+    try {
+      return startActivity(this.db, {
+        userId: ctx.userId ?? LOCAL_USER_ID,
+        task: ctx.task,
+        model: built.modelId,
+        effort: built.effort,
+        connectionLabel: built.conn.label,
+        process: processKind(),
+        jobId: ctx.jobId ?? null,
+        applicationId: ctx.applicationId ?? null,
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  private end(id: string | null): void {
+    if (!id) return;
+    try {
+      endActivity(this.db, id);
+    } catch {
+      /* table may not exist yet during a migration */
+    }
+  }
+
   /** Structured output validated against a zod schema. */
   async object<S extends z.ZodType>(ctx: CallContext, schemaDef: S, input: Input): Promise<z.infer<S>> {
     return this.sem.run(async () => {
       const started = Date.now();
       let built: (BuiltModel & { conn: LlmConnection }) | null = null;
+      let activity: string | null = null;
       try {
         built = await this.model(ctx.tier ?? "smart", ctx.task);
+        activity = this.begin(ctx, built);
         const common = {
           model: built.model,
           schema: schemaDef,
@@ -195,6 +235,8 @@ export class LlmClient {
       } catch (err) {
         this.record(ctx, built?.conn ?? this.runtime?.connection ?? null, built, started, undefined, err);
         throw err;
+      } finally {
+        this.end(activity);
       }
     });
   }
@@ -203,12 +245,16 @@ export class LlmClient {
     return this.sem.run(async () => {
       const started = Date.now();
       let built: (BuiltModel & { conn: LlmConnection }) | null = null;
+      let activity: string | null = null;
       try {
         built = await this.model(ctx.tier ?? "smart", ctx.task);
+        activity = this.begin(ctx, built);
         return await this.runText(built, ctx, input, started);
       } catch (err) {
         this.record(ctx, built?.conn ?? this.runtime?.connection ?? null, built, started, undefined, err);
         throw err;
+      } finally {
+        this.end(activity);
       }
     });
   }
@@ -251,7 +297,8 @@ export class LlmClient {
       const sel = resolveSelection(fresh, "fast");
       model = sel.model;
       const built = { ...(await buildModel(this.db, fresh, sel, "fast", "connection_test")), conn: fresh };
-      const reply = await this.runText(built, { task: "connection_test", maxOutputTokens: 512 }, { prompt: "Reply with the single word: pong" }, started);
+      const activity = this.begin({ task: "connection_test" }, built);
+      const reply = await this.runText(built, { task: "connection_test", maxOutputTokens: 512 }, { prompt: "Reply with the single word: pong" }, started).finally(() => this.end(activity));
       updateConnection(this.db, conn.id, { status: "ok", lastError: null, lastTestedAt: new Date().toISOString() });
       return { ok: true, model, reply: reply.trim(), ms: Date.now() - started, modelsError };
     } catch (err) {
@@ -275,6 +322,8 @@ export class LlmClient {
 const g = globalThis as unknown as { __jhLlm?: LlmClient };
 
 export function getLlm(db: Db = getDb()): LlmClient {
-  g.__jhLlm ??= new LlmClient(db);
+  // The instance lives on globalThis to survive Next.js hot reloads, but it must be rebuilt when
+  // this module is reloaded; otherwise the web server keeps running the old client code.
+  if (!(g.__jhLlm instanceof LlmClient)) g.__jhLlm = new LlmClient(db);
   return g.__jhLlm;
 }

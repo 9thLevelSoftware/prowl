@@ -23,6 +23,7 @@ import { closeRenderer } from "@jh/documents";
 import { emit, subscribe } from "./events";
 import { RescheduleError, handleApply, handleDiscoverAll, handleDiscoverSource, handleProcessJob, handleTailor } from "./handlers";
 
+process.env.JH_PROCESS = "worker";
 const log = logger("worker");
 const db = getDb();
 runMigrations(db);

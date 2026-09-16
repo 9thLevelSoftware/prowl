@@ -319,6 +319,23 @@ export const llmCalls = sqliteTable(
   (t) => [index("llm_calls_at").on(t.userId, t.at)],
 );
 
+/** AI calls in progress right now, from any process. Rows are removed when the call ends. */
+export const aiActivity = sqliteTable("ai_activity", {
+  id: id(),
+  userId: userId(),
+  task: text("task").notNull(),
+  model: text("model").notNull(),
+  effort: text("effort"),
+  connectionLabel: text("connection_label").notNull().default(""),
+  process: text("process").$type<"web" | "worker" | "other">().notNull(),
+  pid: integer("pid").notNull(),
+  jobId: text("job_id"),
+  applicationId: text("application_id"),
+  startedAt: text("started_at").notNull().$defaultFn(now),
+});
+
+export type AiActivity = typeof aiActivity.$inferSelect;
+
 /* ============================ AI connections ============================ */
 
 export type ConnectionKind = "openai-chatgpt" | "gemini-oauth" | "api-key" | "openai-compatible" | "env";
