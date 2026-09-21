@@ -1,8 +1,8 @@
-import { getActiveConnection, listConnections } from "@jh/db";
-import { ensureEnvConnection, getLlm, keyStorage, listProviders } from "@jh/llm";
-import { firecrawlSettings } from "@jh/sources";
+import { getActiveConnection, listConnections } from "@prowl/db";
+import { ensureEnvConnection, getLlm, keyStorage, listProviders } from "@prowl/llm";
+import { firecrawlSettings } from "@prowl/sources";
 import { WebToolsCard } from "./web-tools";
-import { dataDir } from "@jh/shared";
+import { dataDir } from "@prowl/shared";
 import { Card, CardBody, CardHeader, Notice, PageHeader } from "@/components/ui";
 import { db, USER } from "@/lib/server";
 import { ConnectionsPanel } from "./connections/panel";
@@ -22,7 +22,7 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader
             title="AI connections"
-            description="Add as many as you like and choose which one Job Hunter uses. Each connection remembers the model and reasoning effort you picked for it."
+            description="Add as many as you like and choose which one Prowl uses. Each connection remembers the model and reasoning effort you picked for it."
           />
           <CardBody>
             {storage === "file" ? (

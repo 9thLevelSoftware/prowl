@@ -1,5 +1,5 @@
-import { updateConnection, type Db, type LlmConnection, type ModelInfo } from "@jh/db";
-import { logger } from "@jh/shared";
+import { updateConnection, type Db, type LlmConnection, type ModelInfo } from "@prowl/db";
+import { logger } from "@prowl/shared";
 import { findCatalogModel, getCatalog, providerSupport } from "./catalog";
 import { effortInfo } from "./effort";
 import { getSecret } from "./secrets";
@@ -58,7 +58,7 @@ async function fetchLive(db: Db, conn: LlmConnection): Promise<LiveModel[]> {
       // The backend gates the list by client version: an outdated version gets only hidden internal
       // models. Try a recent Codex version first, then a far-future one, and keep the first
       // response that has selectable models.
-      const versions = [process.env.JH_CODEX_CLIENT_VERSION, "0.154.0", "99.0.0"].filter((v): v is string => !!v);
+      const versions = [process.env.PROWL_CODEX_CLIENT_VERSION, "0.154.0", "99.0.0"].filter((v): v is string => !!v);
       let list: any[] = [];
       for (const v of versions) {
         const j = await getJson(`${base}/models?client_version=${encodeURIComponent(v)}`, headers);

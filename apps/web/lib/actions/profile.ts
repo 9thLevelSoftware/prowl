@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { enqueue, eq, getActiveProfile, saveProfileVersion, schema as s, and } from "@jh/db";
-import { getLlm } from "@jh/llm";
-import { ProfileData } from "@jh/shared";
-import { buildFacts, draftBulletsFromNotes, draftSummary, extractProfile, normalizeProfile } from "@jh/core";
-import { extractResumeText, renderResumeFiles, resolveBaseline } from "@jh/documents";
+import { enqueue, eq, getActiveProfile, saveProfileVersion, schema as s, and } from "@prowl/db";
+import { getLlm } from "@prowl/llm";
+import { ProfileData } from "@prowl/shared";
+import { buildFacts, draftBulletsFromNotes, draftSummary, extractProfile, normalizeProfile } from "@prowl/core";
+import { extractResumeText, renderResumeFiles, resolveBaseline } from "@prowl/documents";
 import { db, USER } from "../server";
 
 export type ActionResult<T = undefined> = { ok: true; data?: T; message?: string } | { ok: false; error: string };

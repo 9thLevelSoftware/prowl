@@ -17,10 +17,10 @@ import {
   logApplicationEvent,
   schema as s,
   eq,
-} from "@jh/db";
-import { ProfileData, type JobRequirements, type TailoredResume, type CoverLetter } from "@jh/shared";
-import { buildFacts, scoreJob, validateTailored, measure, jobDedupKey } from "@jh/core";
-import { renderCoverLetterFiles, renderResumeFiles, resolveBaseline, resolveCoverLetter, resolveTailored, closeRenderer } from "@jh/documents";
+} from "@prowl/db";
+import { ProfileData, type JobRequirements, type TailoredResume, type CoverLetter } from "@prowl/shared";
+import { buildFacts, scoreJob, validateTailored, measure, jobDedupKey } from "@prowl/core";
+import { renderCoverLetterFiles, renderResumeFiles, resolveBaseline, resolveCoverLetter, resolveTailored, closeRenderer } from "@prowl/documents";
 
 const db = getDb();
 runMigrations(db);

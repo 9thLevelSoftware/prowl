@@ -15,16 +15,16 @@ import {
   schema as s,
   eq,
   type QueueTask,
-} from "@jh/db";
-import { getLlm } from "@jh/llm";
-import { LOCAL_USER_ID, WORKER_PORT, dataDir, logger, sleep } from "@jh/shared";
-import { closeContext, openForLogin } from "@jh/browser";
-import { closeRenderer } from "@jh/documents";
+} from "@prowl/db";
+import { getLlm } from "@prowl/llm";
+import { LOCAL_USER_ID, WORKER_PORT, dataDir, logger, sleep } from "@prowl/shared";
+import { closeContext, openForLogin } from "@prowl/browser";
+import { closeRenderer } from "@prowl/documents";
 import { emit, subscribe } from "./events";
 import { handleBuildSources } from "./sources-task";
 import { RescheduleError, handleApply, handleDiscoverAll, handleDiscoverSource, handleProcessJob, handleTailor } from "./handlers";
 
-process.env.JH_PROCESS = "worker";
+process.env.PROWL_PROCESS = "worker";
 const log = logger("worker");
 const db = getDb();
 runMigrations(db);
@@ -178,11 +178,11 @@ async function main() {
         .catch(() => null)) as { workerId?: string; startedAt?: string; dataDir?: string } | null;
       if (other?.workerId) {
         log.error(
-          `Another Job Hunter worker is already running (${other.workerId}, started ${other.startedAt}, data: ${other.dataDir ?? "unknown"}). ` +
+          `Another Prowl worker is already running (${other.workerId}, started ${other.startedAt}, data: ${other.dataDir ?? "unknown"}). ` +
             `Stop it first, or end the process: taskkill /F /T /PID ${other.workerId.split("-").pop()}`,
         );
       } else {
-        log.error(`Port ${WORKER_PORT} is used by another program. Free it or set JH_WORKER_PORT in .env.`);
+        log.error(`Port ${WORKER_PORT} is used by another program. Free it or set PROWL_WORKER_PORT in .env.`);
       }
       process.exit(1);
     });

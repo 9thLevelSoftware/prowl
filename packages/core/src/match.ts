@@ -6,7 +6,7 @@ import {
   type ProfileData,
   type ScoreBreakdown,
   type Seniority,
-} from "@jh/shared";
+} from "@prowl/shared";
 import { findSkill, textMentions } from "./skills";
 import { semanticSimilarity } from "./embed";
 import { yearsOfExperience } from "./profile";

@@ -1,8 +1,8 @@
-import { and, desc, eq, inArray, listSuggestions, schema as s } from "@jh/db";
-import { getLlm } from "@jh/llm";
-import { firecrawlSettings } from "@jh/sources";
+import { and, desc, eq, inArray, listSuggestions, schema as s } from "@prowl/db";
+import { getLlm } from "@prowl/llm";
+import { firecrawlSettings } from "@prowl/sources";
 import { SuggestedSources } from "./suggestions";
-import { ADAPTERS } from "@jh/sources";
+import { ADAPTERS } from "@prowl/sources";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, Table, Td, Th, timeAgo } from "@/components/ui";
 import { ActionButton } from "@/components/action";
 import { deleteSourceAction, openBrowserLoginAction, runAllSourcesAction, runSourceAction, toggleSourceAction } from "@/lib/actions/system";

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, eq, getPreferences, getProfileFacts, schema as s } from "@jh/db";
-import { APPLIABLE_ATS } from "@jh/shared";
+import { and, eq, getPreferences, getProfileFacts, schema as s } from "@prowl/db";
+import { APPLIABLE_ATS } from "@prowl/shared";
 import { Badge, Card, CardBody, CardHeader, Notice, PageHeader, StatusBadge, Table, Td, Th, buttonClass } from "@/components/ui";
 import { db, fileUrl, USER } from "@/lib/server";
 import { CoverLetterView, ResumeCompare } from "../resume-view";

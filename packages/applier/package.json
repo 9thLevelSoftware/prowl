@@ -1,5 +1,5 @@
 {
-  "name": "@jh/applier",
+  "name": "@prowl/applier",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,13 +11,13 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@jh/shared": "workspace:*",
-    "@jh/db": "workspace:*",
-    "@jh/llm": "workspace:*",
+    "@prowl/shared": "workspace:*",
+    "@prowl/db": "workspace:*",
+    "@prowl/llm": "workspace:*",
     "playwright": "^1.55.0",
     "zod": "^4.1.0",
     "drizzle-orm": "^0.44.0",
-    "@jh/browser": "workspace:*"
+    "@prowl/browser": "workspace:*"
   },
   "devDependencies": {}
 }

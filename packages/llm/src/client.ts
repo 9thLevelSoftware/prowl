@@ -1,8 +1,8 @@
 import { NoObjectGeneratedError, generateObject, generateText, streamObject, streamText, type ModelMessage } from "ai";
 import { openai as openaiProvider } from "@ai-sdk/openai";
 import type { z } from "zod";
-import { clearOrphanActivity, createConnection, endActivity, getDb, listConnections, schema, startActivity, updateConnection, type Db, type LlmConnection } from "@jh/db";
-import { LOCAL_USER_ID, logger } from "@jh/shared";
+import { clearOrphanActivity, createConnection, endActivity, getDb, listConnections, schema, startActivity, updateConnection, type Db, type LlmConnection } from "@prowl/db";
+import { LOCAL_USER_ID, logger } from "@prowl/shared";
 import { isProviderId, type Tier } from "./providers";
 import { buildModel, resolveRuntime, resolveSelection, type BuiltModel, type Runtime } from "./runtime";
 import { refreshModels } from "./models";
@@ -22,10 +22,10 @@ export interface CallContext {
 }
 
 /** Upper bound for one AI call, so a stuck provider can never leave the UI waiting forever. */
-export const CALL_TIMEOUT_MS = Number(process.env.JH_LLM_TIMEOUT_MS ?? 15 * 60_000);
+export const CALL_TIMEOUT_MS = Number(process.env.PROWL_LLM_TIMEOUT_MS ?? 15 * 60_000);
 
 export function processKind(): "web" | "worker" | "other" {
-  if (process.env.JH_PROCESS === "worker") return "worker";
+  if (process.env.PROWL_PROCESS === "worker") return "worker";
   if (process.env.NEXT_RUNTIME) return "web";
   return "other";
 }
@@ -67,17 +67,17 @@ class Semaphore {
 
 /**
  * Existing .env provider settings keep working: when no connections exist yet and
- * JH_LLM_PROVIDER is set, a read-only "From .env" connection is created.
+ * PROWL_LLM_PROVIDER is set, a read-only "From .env" connection is created.
  */
 export function ensureEnvConnection(db: Db): void {
-  const envProvider = process.env.JH_LLM_PROVIDER;
+  const envProvider = process.env.PROWL_LLM_PROVIDER;
   if (!envProvider || !isProviderId(envProvider)) return;
   if (listConnections(db).length) return;
   // Only when credentials are actually configured; an untouched .env template shouldn't create one.
   const e = process.env;
   const hasCredentials: Record<string, boolean> = {
-    "gemini-oauth": !!(e.JH_LLM_TOKEN_CMD || e.JH_LLM_TOKEN_FILE || e.JH_LLM_ACCESS_TOKEN),
-    "chatgpt-oauth": !!(e.JH_LLM_TOKEN_CMD || e.JH_LLM_TOKEN_FILE || e.JH_LLM_ACCESS_TOKEN),
+    "gemini-oauth": !!(e.PROWL_LLM_TOKEN_CMD || e.PROWL_LLM_TOKEN_FILE || e.PROWL_LLM_ACCESS_TOKEN),
+    "chatgpt-oauth": !!(e.PROWL_LLM_TOKEN_CMD || e.PROWL_LLM_TOKEN_FILE || e.PROWL_LLM_ACCESS_TOKEN),
     gemini: !!e.GEMINI_API_KEY,
     openai: !!e.OPENAI_API_KEY,
     anthropic: !!e.ANTHROPIC_API_KEY,

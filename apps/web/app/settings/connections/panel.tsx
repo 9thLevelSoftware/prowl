@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import type { LlmConnection } from "@jh/db/schema";
-import type { ProviderSummary } from "@jh/llm/catalog";
+import type { LlmConnection } from "@prowl/db/schema";
+import type { ProviderSummary } from "@prowl/llm/catalog";
 import { Badge, Button, Card, EmptyState, cn } from "@/components/ui";
 import { AddConnectionDialog } from "./add-dialog";
 import { ConnectionDetail } from "./detail";
@@ -36,7 +36,7 @@ export function ConnectionsPanel({ connections, activeId, providers }: { connect
             </Button>
           }
         >
-          Sign in with ChatGPT or Google, or add an API key from almost any provider. Job Hunter uses it to read resumes, analyze postings, and write tailored documents.
+          Sign in with ChatGPT or Google, or add an API key from almost any provider. Prowl uses it to read resumes, analyze postings, and write tailored documents.
         </EmptyState>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[280px_1fr]">

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { chromium, type BrowserContext, type Page } from "playwright";
-import { dataPath, logger } from "@jh/shared";
+import { dataPath, logger } from "@prowl/shared";
 
 const log = logger("browser");
 
@@ -25,7 +25,7 @@ export function profileDir(): string {
 }
 
 async function launch(headless: boolean): Promise<BrowserContext> {
-  const channel = process.env.JH_BROWSER_CHANNEL === "chromium" ? undefined : "chrome";
+  const channel = process.env.PROWL_BROWSER_CHANNEL === "chromium" ? undefined : "chrome";
   const base = {
     headless,
     viewport: { width: 1366, height: 900 },

@@ -1,5 +1,5 @@
-import type { Preferences, RawJob, SourceType } from "@jh/shared";
-import type { LlmClient } from "@jh/llm";
+import type { Preferences, RawJob, SourceType } from "@prowl/shared";
+import type { LlmClient } from "@prowl/llm";
 
 export interface SourceContext {
   prefs: Preferences;

@@ -5,11 +5,11 @@ import { decodeJwt } from "./pkce";
  * The client's registered redirect is http://localhost:1455/auth/callback.
  */
 
-export const OPENAI_CLIENT_ID = process.env.JH_OPENAI_CLIENT_ID ?? "app_EMoamEEZ73f0CkXaXp7hrann";
-export const openaiAuthBase = () => process.env.JH_OPENAI_AUTH_BASE ?? "https://auth.openai.com";
-export const OPENAI_CALLBACK_PORT = Number(process.env.JH_OPENAI_OAUTH_PORT ?? 1455);
+export const OPENAI_CLIENT_ID = process.env.PROWL_OPENAI_CLIENT_ID ?? "app_EMoamEEZ73f0CkXaXp7hrann";
+export const openaiAuthBase = () => process.env.PROWL_OPENAI_AUTH_BASE ?? "https://auth.openai.com";
+export const OPENAI_CALLBACK_PORT = Number(process.env.PROWL_OPENAI_OAUTH_PORT ?? 1455);
 export const OPENAI_CALLBACK_PATH = "/auth/callback";
-export const CHATGPT_BASE_URL = process.env.JH_CHATGPT_BASE_URL ?? "https://chatgpt.com/backend-api/codex";
+export const CHATGPT_BASE_URL = process.env.PROWL_CHATGPT_BASE_URL ?? "https://chatgpt.com/backend-api/codex";
 
 export interface OpenAiTokens {
   idToken: string;

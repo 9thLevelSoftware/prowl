@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
-import { REPO_ROOT, dataPath, logger } from "@jh/shared";
-import type { ConnectionSdk } from "@jh/db";
+import { REPO_ROOT, dataPath, logger } from "@prowl/shared";
+import type { ConnectionSdk } from "@prowl/db";
 
 const log = logger("catalog");
 
@@ -102,7 +102,7 @@ export function getCatalog(): Catalog {
   }
   catalog ??= readSnapshot();
   memory = { catalog, loadedAt: fresh ? Date.now() : 0 };
-  if (!fresh && process.env.JH_CATALOG_OFFLINE !== "1") {
+  if (!fresh && process.env.PROWL_CATALOG_OFFLINE !== "1") {
     refreshing ??= refreshCache()
       .catch((err) => log.warn(`catalog refresh failed, using cached copy: ${(err as Error).message}`))
       .finally(() => (refreshing = undefined));

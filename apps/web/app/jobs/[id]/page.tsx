@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, eq, getActiveProfile, schema as s } from "@jh/db";
-import { APPLIABLE_ATS } from "@jh/shared";
+import { and, eq, getActiveProfile, schema as s } from "@prowl/db";
+import { APPLIABLE_ATS } from "@prowl/shared";
 import { Badge, Card, CardBody, CardHeader, PageHeader, ScoreBadge, StatusBadge, buttonClass, money, formatDateTime } from "@/components/ui";
 import { ActionButton } from "@/components/action";
 import { rescoreJob, setJobStatus, tailorJob } from "@/lib/actions/pipeline";

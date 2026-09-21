@@ -1,5 +1,5 @@
 {
-  "name": "@jh/sources",
+  "name": "@prowl/sources",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,14 +11,14 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@jh/shared": "workspace:*",
-    "@jh/llm": "workspace:*",
+    "@prowl/shared": "workspace:*",
+    "@prowl/llm": "workspace:*",
     "cheerio": "^1.1.0",
     "robots-parser": "^3.0.1",
     "playwright": "^1.55.0",
     "zod": "^4.1.0",
-    "@jh/browser": "workspace:*",
-    "@jh/db": "workspace:*",
+    "@prowl/browser": "workspace:*",
+    "@prowl/db": "workspace:*",
     "drizzle-orm": "^0.44.0"
   },
   "devDependencies": {}

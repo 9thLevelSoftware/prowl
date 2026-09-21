@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { OUTCOME_STATUSES } from "@jh/shared/schemas";
+import { OUTCOME_STATUSES } from "@prowl/shared/schemas";
 import { Button, Label, LabelText, OUTCOME_META, Select, Textarea } from "@/components/ui";
 import { ResultMessage, useAction } from "@/components/action";
 import { updateOutcomeAction } from "@/lib/actions/pipeline";

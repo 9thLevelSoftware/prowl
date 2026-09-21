@@ -1,4 +1,4 @@
-import { getPreferences } from "@jh/db";
+import { getPreferences } from "@prowl/db";
 import { PageHeader } from "@/components/ui";
 import { db, USER } from "@/lib/server";
 import { PreferencesForm } from "./form";

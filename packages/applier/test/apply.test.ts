@@ -3,14 +3,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser } from "playwright";
-import { Preferences, ProfileData } from "@jh/shared";
+import { Preferences, ProfileData } from "@prowl/shared";
 import { applyOnPage, matchOption, type ApplyInput, type AnswerContext, type ApplyOutcome } from "../src";
 import { startMockAts } from "./mock-ats";
 
 let browser: Browser;
 let mock: Awaited<ReturnType<typeof startMockAts>>;
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jh-apply-"));
-process.env.JH_DATA_DIR = tmp;
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "prowl-apply-"));
+process.env.PROWL_DATA_DIR = tmp;
 
 const resumePath = path.join(tmp, "Jordan_Rivera_Resume_Acme.pdf");
 const coverPath = path.join(tmp, "Jordan_Rivera_Cover_Letter_Acme.pdf");

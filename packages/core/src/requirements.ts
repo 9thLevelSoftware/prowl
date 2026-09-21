@@ -1,5 +1,5 @@
-import type { LlmClient } from "@jh/llm";
-import { JobRequirementsOut, type JobRequirements } from "@jh/shared";
+import type { LlmClient } from "@prowl/llm";
+import { JobRequirementsOut, type JobRequirements } from "@prowl/shared";
 import { requirementsSystemPrompt } from "./resume-craft";
 
 const SYSTEM = `${requirementsSystemPrompt()}

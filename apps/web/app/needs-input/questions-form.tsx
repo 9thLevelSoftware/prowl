@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { PendingQuestion } from "@jh/db/schema";
+import type { PendingQuestion } from "@prowl/db/schema";
 import { Button, Input, Label, LabelText, Select, Textarea } from "@/components/ui";
 import { ResultMessage, useAction } from "@/components/action";
 import { answerQuestionsAction } from "@/lib/actions/pipeline";

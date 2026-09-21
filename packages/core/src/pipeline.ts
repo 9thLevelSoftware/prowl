@@ -11,8 +11,8 @@ import {
   transitionApplication,
   type Db,
   type JobSource,
-} from "@jh/db";
-import type { LlmClient } from "@jh/llm";
+} from "@prowl/db";
+import type { LlmClient } from "@prowl/llm";
 import {
   APPLIABLE_ATS,
   canonicalUrl,
@@ -20,8 +20,8 @@ import {
   logger,
   normalizeText,
   type RawJob,
-} from "@jh/shared";
-import { renderCoverLetterFiles, renderResumeFiles, resolveCoverLetter, resolveTailored } from "@jh/documents";
+} from "@prowl/shared";
+import { renderCoverLetterFiles, renderResumeFiles, resolveCoverLetter, resolveTailored } from "@prowl/documents";
 import { extractRequirements } from "./requirements";
 import { scoreJob } from "./match";
 import { auditClaims, coverLetterClaims, resumeClaims, tailorResume, writeCoverLetter, type JobContext } from "./tailor";

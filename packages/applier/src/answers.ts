@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { LlmClient } from "@jh/llm";
-import type { Preferences, ProfileData, ProfileFact } from "@jh/shared";
-import { normalizeText } from "@jh/shared";
+import type { LlmClient } from "@prowl/llm";
+import type { Preferences, ProfileData, ProfileFact } from "@prowl/shared";
+import { normalizeText } from "@prowl/shared";
 import { questionKey, type FormQuestion } from "./extract";
 
 export type AnswerSource = "profile" | "qa_bank" | "file" | "default" | "llm_draft" | "user";

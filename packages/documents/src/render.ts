@@ -2,7 +2,7 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import { chromium, type Browser } from "playwright";
 import { AlignmentType, BorderStyle, Document, Packer, Paragraph, TextRun } from "docx";
-import { dataPath, logger, slug } from "@jh/shared";
+import { dataPath, logger, slug } from "@prowl/shared";
 import { coverLetterHtml, resumeHtml } from "./html";
 import type { ResolvedCoverLetter, ResolvedResume } from "./model";
 

@@ -1,5 +1,5 @@
-import { getContext, withBrowserLock, type Page } from "@jh/browser";
-import { logger, randomBetween, sleep, type RawJob } from "@jh/shared";
+import { getContext, withBrowserLock, type Page } from "@prowl/browser";
+import { logger, randomBetween, sleep, type RawJob } from "@prowl/shared";
 import { detectAts } from "../ats";
 import { fetchAtsJob } from "../resolve";
 import type { SourceAdapter, SourceContext } from "../types";

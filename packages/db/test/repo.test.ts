@@ -21,7 +21,7 @@ import {
 let db: Db;
 
 beforeEach(() => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "jh-db-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "prowl-db-"));
   db = openDb(path.join(dir, "t.sqlite"));
   runMigrations(db);
 });

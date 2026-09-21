@@ -11,6 +11,6 @@ if (!fs.existsSync(".env")) {
   fs.copyFileSync(".env.example", ".env");
   console.log("Created .env from .env.example. Add your AI provider credentials there.");
 }
-run("pnpm --filter @jh/documents exec playwright install chromium");
+run("pnpm --filter @prowl/documents exec playwright install chromium");
 run("pnpm db:migrate");
 console.log("\nSetup complete. Start everything with: pnpm dev  (then open http://localhost:3000)");

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte, schema as s, sql } from "@jh/db";
+import { and, desc, eq, gte, schema as s, sql } from "@prowl/db";
 import { Card, CardBody, CardHeader, EmptyState, LinkButton, PageHeader, Stat, StatusBadge, timeAgo, Badge } from "@/components/ui";
 import { ActionButton } from "@/components/action";
 import { runAllSourcesAction } from "@/lib/actions/system";

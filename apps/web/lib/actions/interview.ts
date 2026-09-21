@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { enqueue, eq, getInterview, schema as s, setSetting } from "@jh/db";
-import { getLlm, setSecret } from "@jh/llm";
+import { enqueue, eq, getInterview, schema as s, setSetting } from "@prowl/db";
+import { getLlm, setSecret } from "@prowl/llm";
 import {
   abandonInterview,
   addSuggestionAsSource,
@@ -12,8 +12,8 @@ import {
   InterviewDraft,
   saveReviewDraft,
   startInterview,
-} from "@jh/core";
-import { FIRECRAWL_SECRET_ID, FIRECRAWL_SETTINGS_KEY, Firecrawl, firecrawlSettings, type FirecrawlCapabilities } from "@jh/sources";
+} from "@prowl/core";
+import { FIRECRAWL_SECRET_ID, FIRECRAWL_SETTINGS_KEY, Firecrawl, firecrawlSettings, type FirecrawlCapabilities } from "@prowl/sources";
 import { db, USER } from "../server";
 import type { ActionResult } from "./profile";
 

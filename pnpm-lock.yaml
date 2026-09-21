@@ -8,16 +8,16 @@ importers:
 
   .:
     devDependencies:
-      '@jh/core':
+      '@prowl/core':
         specifier: workspace:*
         version: link:packages/core
-      '@jh/db':
+      '@prowl/db':
         specifier: workspace:*
         version: link:packages/db
-      '@jh/documents':
+      '@prowl/documents':
         specifier: workspace:*
         version: link:packages/documents
-      '@jh/shared':
+      '@prowl/shared':
         specifier: workspace:*
         version: link:packages/shared
       '@types/node':
@@ -41,36 +41,36 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.7.0
         version: 3.8.1
-      '@jh/applier':
-        specifier: workspace:*
-        version: link:../../packages/applier
-      '@jh/browser':
-        specifier: workspace:*
-        version: link:../../packages/browser
-      '@jh/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@jh/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@jh/documents':
-        specifier: workspace:*
-        version: link:../../packages/documents
-      '@jh/llm':
-        specifier: workspace:*
-        version: link:../../packages/llm
-      '@jh/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@jh/sources':
-        specifier: workspace:*
-        version: link:../../packages/sources
       '@napi-rs/keyring':
         specifier: ^2.1.0
         version: 2.1.0
       '@next/env':
         specifier: ^15.5.0
         version: 15.5.25
+      '@prowl/applier':
+        specifier: workspace:*
+        version: link:../../packages/applier
+      '@prowl/browser':
+        specifier: workspace:*
+        version: link:../../packages/browser
+      '@prowl/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@prowl/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@prowl/documents':
+        specifier: workspace:*
+        version: link:../../packages/documents
+      '@prowl/llm':
+        specifier: workspace:*
+        version: link:../../packages/llm
+      '@prowl/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@prowl/sources':
+        specifier: workspace:*
+        version: link:../../packages/sources
       better-sqlite3:
         specifier: ^12.4.0
         version: 12.11.1
@@ -135,28 +135,28 @@ importers:
 
   apps/worker:
     dependencies:
-      '@jh/applier':
+      '@prowl/applier':
         specifier: workspace:*
         version: link:../../packages/applier
-      '@jh/browser':
+      '@prowl/browser':
         specifier: workspace:*
         version: link:../../packages/browser
-      '@jh/core':
+      '@prowl/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@jh/db':
+      '@prowl/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@jh/documents':
+      '@prowl/documents':
         specifier: workspace:*
         version: link:../../packages/documents
-      '@jh/llm':
+      '@prowl/llm':
         specifier: workspace:*
         version: link:../../packages/llm
-      '@jh/shared':
+      '@prowl/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@jh/sources':
+      '@prowl/sources':
         specifier: workspace:*
         version: link:../../packages/sources
       croner:
@@ -171,16 +171,16 @@ importers:
 
   packages/applier:
     dependencies:
-      '@jh/browser':
+      '@prowl/browser':
         specifier: workspace:*
         version: link:../browser
-      '@jh/db':
+      '@prowl/db':
         specifier: workspace:*
         version: link:../db
-      '@jh/llm':
+      '@prowl/llm':
         specifier: workspace:*
         version: link:../llm
-      '@jh/shared':
+      '@prowl/shared':
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
@@ -195,7 +195,7 @@ importers:
 
   packages/browser:
     dependencies:
-      '@jh/shared':
+      '@prowl/shared':
         specifier: workspace:*
         version: link:../shared
       playwright:
@@ -207,19 +207,19 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.7.0
         version: 3.8.1
-      '@jh/applier':
+      '@prowl/applier':
         specifier: workspace:*
         version: link:../applier
-      '@jh/db':
+      '@prowl/db':
         specifier: workspace:*
         version: link:../db
-      '@jh/documents':
+      '@prowl/documents':
         specifier: workspace:*
         version: link:../documents
-      '@jh/llm':
+      '@prowl/llm':
         specifier: workspace:*
         version: link:../llm
-      '@jh/shared':
+      '@prowl/shared':
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
@@ -231,7 +231,7 @@ importers:
 
   packages/db:
     dependencies:
-      '@jh/shared':
+      '@prowl/shared':
         specifier: workspace:*
         version: link:../shared
       better-sqlite3:
@@ -250,7 +250,7 @@ importers:
 
   packages/documents:
     dependencies:
-      '@jh/shared':
+      '@prowl/shared':
         specifier: workspace:*
         version: link:../shared
       docx:
@@ -280,15 +280,15 @@ importers:
       '@ai-sdk/openai-compatible':
         specifier: ^1
         version: 1.0.54(zod@4.6.5)
-      '@jh/db':
-        specifier: workspace:*
-        version: link:../db
-      '@jh/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@napi-rs/keyring':
         specifier: ^2.1.0
         version: 2.1.0
+      '@prowl/db':
+        specifier: workspace:*
+        version: link:../db
+      '@prowl/shared':
+        specifier: workspace:*
+        version: link:../shared
       ai:
         specifier: ^5.0.0
         version: 5.0.258(zod@4.6.5)
@@ -304,16 +304,16 @@ importers:
 
   packages/sources:
     dependencies:
-      '@jh/browser':
+      '@prowl/browser':
         specifier: workspace:*
         version: link:../browser
-      '@jh/db':
+      '@prowl/db':
         specifier: workspace:*
         version: link:../db
-      '@jh/llm':
+      '@prowl/llm':
         specifier: workspace:*
         version: link:../llm
-      '@jh/shared':
+      '@prowl/shared':
         specifier: workspace:*
         version: link:../shared
       cheerio:

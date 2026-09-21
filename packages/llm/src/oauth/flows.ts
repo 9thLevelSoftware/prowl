@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { createConnection, getConnection, updateConnection, tryLockRefresh, unlockRefresh, type Db, type LlmConnection } from "@jh/db";
-import { LOCAL_USER_ID, logger, sleep } from "@jh/shared";
+import { createConnection, getConnection, updateConnection, tryLockRefresh, unlockRefresh, type Db, type LlmConnection } from "@prowl/db";
+import { LOCAL_USER_ID, logger, sleep } from "@prowl/shared";
 import { getSecret, setSecret } from "../secrets";
 import { pkcePair, randomState } from "./pkce";
 import { startLoopback, type LoopbackServer } from "./loopback";

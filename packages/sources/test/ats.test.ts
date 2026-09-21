@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Preferences, type RawJob } from "@jh/shared";
+import { Preferences, type RawJob } from "@prowl/shared";
 import { detectAts, findEmbeddedBoards, prefilter, parseSalaryText } from "../src";
 
 describe("detectAts", () => {

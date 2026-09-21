@@ -1,4 +1,4 @@
-import type { CoverLetter, ProfileData, TailoredResume } from "@jh/shared";
+import type { CoverLetter, ProfileData, TailoredResume } from "@prowl/shared";
 
 /**
  * The fully resolved resume that gets rendered. Identity fields (company, title, dates, institution)

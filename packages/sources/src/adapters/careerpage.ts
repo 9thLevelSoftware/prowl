@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { chromium } from "playwright";
 import { z } from "zod";
-import { htmlToText, logger, type RawJob } from "@jh/shared";
+import { htmlToText, logger, type RawJob } from "@prowl/shared";
 import { detectAts, findEmbeddedBoards } from "../ats";
 import { politeFetch, robotsAllowed } from "../http";
 import { fetchAtsJob } from "../resolve";

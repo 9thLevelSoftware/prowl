@@ -1,5 +1,5 @@
 {
-  "name": "@jh/llm",
+  "name": "@prowl/llm",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -15,8 +15,8 @@
     "@ai-sdk/google": "^2.0.0",
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/openai-compatible": "^1",
-    "@jh/db": "workspace:*",
-    "@jh/shared": "workspace:*",
+    "@prowl/db": "workspace:*",
+    "@prowl/shared": "workspace:*",
     "@napi-rs/keyring": "^2.1.0",
     "ai": "^5.0.0",
     "zod": "^4.1.0"

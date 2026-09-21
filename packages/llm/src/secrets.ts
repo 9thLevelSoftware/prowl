@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import { dataPath, logger } from "@jh/shared";
+import { dataPath, logger } from "@prowl/shared";
 
 const log = logger("secrets");
 
@@ -13,7 +13,7 @@ const log = logger("secrets");
  * unavailable the master key is kept in data/secrets.key and `keyStorage()` reports "file".
  */
 
-const SERVICE = "job-hunter";
+const SERVICE = "prowl";
 const ACCOUNT = "master-key";
 
 type Envelope = Record<string, { iv: string; tag: string; data: string }>;
@@ -22,11 +22,11 @@ let masterKey: Buffer | undefined;
 let storage: "keychain" | "file" | undefined;
 
 function secretsFile(): string {
-  return process.env.JH_SECRETS_FILE ?? dataPath("secrets.json");
+  return process.env.PROWL_SECRETS_FILE ?? dataPath("secrets.json");
 }
 
 async function loadKeyring(): Promise<typeof import("@napi-rs/keyring") | null> {
-  if (process.env.JH_SECRETS_NO_KEYCHAIN === "1") return null;
+  if (process.env.PROWL_SECRETS_NO_KEYCHAIN === "1") return null;
   try {
     return await import("@napi-rs/keyring");
   } catch {

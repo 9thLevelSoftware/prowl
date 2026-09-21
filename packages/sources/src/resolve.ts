@@ -1,4 +1,4 @@
-import { logger, type RawJob } from "@jh/shared";
+import { logger, type RawJob } from "@prowl/shared";
 import { detectAts } from "./ats";
 import { getJson, politeFetch } from "./http";
 import { mapGreenhouseJob } from "./adapters/greenhouse";

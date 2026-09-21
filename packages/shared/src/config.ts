@@ -15,7 +15,7 @@ function findRepoRoot(start: string): string {
 export const REPO_ROOT = findRepoRoot(process.cwd());
 
 export function dataDir(): string {
-  const configured = process.env.JH_DATA_DIR ?? "./data";
+  const configured = process.env.PROWL_DATA_DIR ?? "./data";
   const dir = path.isAbsolute(configured) ? configured : path.join(REPO_ROOT, configured);
   fs.mkdirSync(dir, { recursive: true });
   return dir;
@@ -30,5 +30,5 @@ export function dataPath(...parts: string[]): string {
 
 export const LOCAL_USER_ID = "local";
 
-export const WORKER_PORT = Number(process.env.JH_WORKER_PORT ?? 3031);
+export const WORKER_PORT = Number(process.env.PROWL_WORKER_PORT ?? 3031);
 export const WORKER_URL = `http://127.0.0.1:${WORKER_PORT}`;

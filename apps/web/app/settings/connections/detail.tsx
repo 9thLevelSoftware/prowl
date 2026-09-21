@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Loader2, RefreshCw, Check, ExternalLink } from "lucide-react";
-import type { LlmConnection, ModelInfo } from "@jh/db/schema";
-import { AUTO_EFFORT, EFFORT_LABELS, TASK_EFFORT_SUMMARY } from "@jh/llm/effort";
+import type { LlmConnection, ModelInfo } from "@prowl/db/schema";
+import { AUTO_EFFORT, EFFORT_LABELS, TASK_EFFORT_SUMMARY } from "@prowl/llm/effort";
 import { Badge, Button, Input, Label, LabelText, Notice, Select, cn, formatDateTime, timeAgo } from "@/components/ui";
 import { Combobox } from "@/components/combobox";
 import { ResultMessage, useAction } from "@/components/action";
@@ -201,7 +201,7 @@ export function ConnectionDetail({ conn, isActive, onRemoved }: { conn: LlmConne
 
       {isEnv ? (
         <Notice tone="neutral" title="Models are set in .env">
-          This connection comes from <code className="font-mono">JH_LLM_PROVIDER</code> in your .env file. Add a connection to pick models and effort here instead.
+          This connection comes from <code className="font-mono">PROWL_LLM_PROVIDER</code> in your .env file. Add a connection to pick models and effort here instead.
         </Notice>
       ) : (
         <section className="flex flex-col gap-4 rounded-lg border border-border p-4">

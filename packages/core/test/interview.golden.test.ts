@@ -1,6 +1,6 @@
 /**
  * Golden interview test against a real LLM provider. It costs quota, so it only runs with:
- *   JH_GOLDEN=1 pnpm test:golden
+ *   PROWL_GOLDEN=1 pnpm test:golden
  * The AI connection comes from your real database (Settings). The interview itself runs in a
  * throwaway database so nothing is written to your profile or preferences.
  */
@@ -8,12 +8,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { getDb, openDb, runMigrations, saveProfileVersion } from "@jh/db";
-import { getLlm } from "@jh/llm";
+import { getDb, openDb, runMigrations, saveProfileVersion } from "@prowl/db";
+import { getLlm } from "@prowl/llm";
 import { InterviewDraft, answerInterview, buildFacts, finishInterview, hasEvidence, startInterview } from "../src";
 import { profile } from "./fixtures";
 
-const enabled = process.env.JH_GOLDEN === "1";
+const enabled = process.env.PROWL_GOLDEN === "1";
 
 /** A backend engineer who answers plainly and mentions one skill that isn't on the resume. */
 const PERSONA = [

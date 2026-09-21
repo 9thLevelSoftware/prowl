@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { SENIORITIES, type Preferences } from "@jh/shared/schemas";
+import { SENIORITIES, type Preferences } from "@prowl/shared/schemas";
 import { Button, Card, CardBody, CardHeader, Checkbox, Input, Label, LabelText, Select, cn } from "@/components/ui";
 import { ResultMessage, useAction } from "@/components/action";
 import { savePreferencesAction } from "@/lib/actions/pipeline";

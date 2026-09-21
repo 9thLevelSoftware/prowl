@@ -1,4 +1,4 @@
-import { htmlToText, type RawJob } from "@jh/shared";
+import { htmlToText, type RawJob } from "@prowl/shared";
 import { detectAts } from "../ats";
 import { getJson } from "../http";
 import { fetchAtsJob, finalUrl } from "../resolve";

@@ -1,5 +1,5 @@
-import { listActivity } from "@jh/db";
-import { CALL_TIMEOUT_MS, TASK_LABELS, WORKER_TASK_LABELS } from "@jh/llm";
+import { listActivity } from "@prowl/db";
+import { CALL_TIMEOUT_MS, TASK_LABELS, WORKER_TASK_LABELS } from "@prowl/llm";
 import { db, USER, workerOnline } from "@/lib/server";
 
 export const dynamic = "force-dynamic";

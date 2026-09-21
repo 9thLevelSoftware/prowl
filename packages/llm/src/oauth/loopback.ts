@@ -56,7 +56,7 @@ export async function startLoopback(opts: {
       if (!code) throw new Error("No authorization code was returned");
       if (state !== opts.state) throw new Error("Sign-in state did not match. Start the sign-in again.");
       await opts.onCode(code);
-      res.writeHead(200, { "content-type": "text/html" }).end(page("Signed in", "Job Hunter is connected. You can close this tab."));
+      res.writeHead(200, { "content-type": "text/html" }).end(page("Signed in", "Prowl is connected. You can close this tab."));
       resolve({ code });
     } catch (err) {
       res.writeHead(400, { "content-type": "text/html" }).end(page("Sign-in failed", String((err as Error).message).replace(/</g, "&lt;")));

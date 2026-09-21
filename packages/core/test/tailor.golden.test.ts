@@ -1,16 +1,16 @@
 /**
  * Golden tests against a real LLM provider. They cost money/quota, so they only run with:
- *   JH_GOLDEN=1 pnpm test:golden
+ *   PROWL_GOLDEN=1 pnpm test:golden
  * using the AI connection that is active on the Settings page (with its saved model and effort).
  */
 import { describe, expect, it } from "vitest";
-import { getDb, runMigrations } from "@jh/db";
-import { getLlm } from "@jh/llm";
-import type { TailoredResume } from "@jh/shared";
+import { getDb, runMigrations } from "@prowl/db";
+import { getLlm } from "@prowl/llm";
+import type { TailoredResume } from "@prowl/shared";
 import { auditClaims, buildFacts, extractProfile, resumeClaims, tailorResume, validateTailored, writeCoverLetter, validateCoverLetter } from "../src";
 import { prefs, profile, requirements } from "./fixtures";
 
-const enabled = process.env.JH_GOLDEN === "1";
+const enabled = process.env.PROWL_GOLDEN === "1";
 // Uses your real database so the active AI connection from Settings (and its saved model/effort) is used.
 const db = getDb();
 runMigrations(db);

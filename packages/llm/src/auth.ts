@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
  * Bearer-token sources for OAuth-based providers. Credentials are never stored by this app;
  * we read whatever a trusted CLI login (or a user-supplied command) already produced.
  *
- * Resolution order: JH_LLM_ACCESS_TOKEN -> JH_LLM_TOKEN_CMD -> JH_LLM_TOKEN_FILE.
+ * Resolution order: PROWL_LLM_ACCESS_TOKEN -> PROWL_LLM_TOKEN_CMD -> PROWL_LLM_TOKEN_FILE.
  */
 
 export interface BearerToken {
@@ -62,19 +62,19 @@ function isFresh(t: BearerToken | undefined): t is BearerToken {
 export function getBearerToken(opts: { forceRefresh?: boolean } = {}): BearerToken {
   if (!opts.forceRefresh && isFresh(cached)) return cached;
 
-  const direct = process.env.JH_LLM_ACCESS_TOKEN?.trim();
+  const direct = process.env.PROWL_LLM_ACCESS_TOKEN?.trim();
   if (direct) {
     cached = { accessToken: direct, expiresAt: jwtExpiry(direct) };
     return cached;
   }
 
-  const cmd = process.env.JH_LLM_TOKEN_CMD?.trim();
+  const cmd = process.env.PROWL_LLM_TOKEN_CMD?.trim();
   if (cmd) {
     let out: string;
     try {
       out = execSync(cmd, { encoding: "utf8", timeout: 30_000, windowsHide: true }).trim();
     } catch (err) {
-      throw new TokenUnavailableError(`JH_LLM_TOKEN_CMD failed: ${(err as Error).message}`);
+      throw new TokenUnavailableError(`PROWL_LLM_TOKEN_CMD failed: ${(err as Error).message}`);
     }
     const parsed = parseTokenFile(out);
     // Command output rarely carries an expiry; assume 45 minutes so we re-run it well before a 1h token lapses.
@@ -82,14 +82,14 @@ export function getBearerToken(opts: { forceRefresh?: boolean } = {}): BearerTok
     return cached;
   }
 
-  const file = process.env.JH_LLM_TOKEN_FILE?.trim();
+  const file = process.env.PROWL_LLM_TOKEN_FILE?.trim();
   if (file) {
     const p = expandHome(file);
-    if (!fs.existsSync(p)) throw new TokenUnavailableError(`JH_LLM_TOKEN_FILE not found: ${p}`);
+    if (!fs.existsSync(p)) throw new TokenUnavailableError(`PROWL_LLM_TOKEN_FILE not found: ${p}`);
     const parsed = parseTokenFile(fs.readFileSync(p, "utf8"));
     if (!isFresh(parsed)) {
       throw new TokenUnavailableError(
-        `The access token in ${p} has expired. Re-run the CLI that wrote it (for example \`codex login\` or \`gemini\`) to refresh it, or set JH_LLM_TOKEN_CMD to a command that prints a fresh token.`,
+        `The access token in ${p} has expired. Re-run the CLI that wrote it (for example \`codex login\` or \`gemini\`) to refresh it, or set PROWL_LLM_TOKEN_CMD to a command that prints a fresh token.`,
       );
     }
     cached = parsed;
@@ -97,7 +97,7 @@ export function getBearerToken(opts: { forceRefresh?: boolean } = {}): BearerTok
   }
 
   throw new TokenUnavailableError(
-    "No OAuth credentials configured. Set JH_LLM_TOKEN_CMD, JH_LLM_TOKEN_FILE, or JH_LLM_ACCESS_TOKEN (see .env.example).",
+    "No OAuth credentials configured. Set PROWL_LLM_TOKEN_CMD, PROWL_LLM_TOKEN_FILE, or PROWL_LLM_ACCESS_TOKEN (see .env.example).",
   );
 }
 

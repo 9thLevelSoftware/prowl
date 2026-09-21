@@ -1,4 +1,4 @@
-import { titleMatchStrength, titleTerms, usableKeywords, type Preferences, type RawJob } from "@jh/shared";
+import { titleMatchStrength, titleTerms, usableKeywords, type Preferences, type RawJob } from "@prowl/shared";
 
 export { titleMatchStrength, titleTerms, usableKeywords };
 

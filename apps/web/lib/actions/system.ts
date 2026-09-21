@@ -2,9 +2,9 @@
 
 import fs from "node:fs";
 import { revalidatePath } from "next/cache";
-import { enqueue, eq, schema as s } from "@jh/db";
-import { SourceType, dataDir } from "@jh/shared";
-import { getAdapter } from "@jh/sources";
+import { enqueue, eq, schema as s } from "@prowl/db";
+import { SourceType, dataDir } from "@prowl/shared";
+import { getAdapter } from "@prowl/sources";
 import { db, USER, worker } from "../server";
 import type { ActionResult } from "./profile";
 

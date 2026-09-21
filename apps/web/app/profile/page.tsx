@@ -1,5 +1,5 @@
-import { emptyProfile } from "@jh/shared";
-import { getActiveProfile, getProfileFacts, listProfiles } from "@jh/db";
+import { emptyProfile } from "@prowl/shared";
+import { getActiveProfile, getProfileFacts, listProfiles } from "@prowl/db";
 import { Badge, Card, CardBody, CardHeader, PageHeader, formatDateTime, buttonClass } from "@/components/ui";
 import { ActionButton } from "@/components/action";
 import { activateProfileVersion } from "@/lib/actions/profile";

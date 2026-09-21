@@ -34,16 +34,16 @@ export function isProviderId(v: string): v is ProviderId {
 
 /** Resolve provider config from env with optional overrides (e.g. from the Settings page). */
 export function resolveProviderConfig(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
-  const envProvider = process.env.JH_LLM_PROVIDER ?? "gemini-oauth";
+  const envProvider = process.env.PROWL_LLM_PROVIDER ?? "gemini-oauth";
   const provider = overrides.provider ?? (isProviderId(envProvider) ? envProvider : "gemini-oauth");
   const defaults = DEFAULT_MODELS[provider];
   const oauth = provider.endsWith("-oauth");
   return {
     provider,
-    smartModel: overrides.smartModel || process.env.JH_MODEL_SMART || defaults.smart,
-    fastModel: overrides.fastModel || process.env.JH_MODEL_FAST || defaults.fast,
-    baseURL: overrides.baseURL || process.env.JH_LLM_BASE_URL || undefined,
-    googleProject: overrides.googleProject || process.env.JH_GOOGLE_PROJECT || undefined,
+    smartModel: overrides.smartModel || process.env.PROWL_MODEL_SMART || defaults.smart,
+    fastModel: overrides.fastModel || process.env.PROWL_MODEL_FAST || defaults.fast,
+    baseURL: overrides.baseURL || process.env.PROWL_LLM_BASE_URL || undefined,
+    googleProject: overrides.googleProject || process.env.PROWL_GOOGLE_PROJECT || undefined,
     concurrency: overrides.concurrency ?? (oauth ? 2 : 4),
     subscription: oauth,
   };

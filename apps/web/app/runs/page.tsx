@@ -1,4 +1,4 @@
-import { desc, eq, gte, and, schema as s, sql, queueStats } from "@jh/db";
+import { desc, eq, gte, and, schema as s, sql, queueStats } from "@prowl/db";
 import { Badge, Card, CardBody, CardHeader, PageHeader, Stat, Table, Td, Th, formatDateTime, timeAgo } from "@/components/ui";
 import { db, USER, workerOnline } from "@/lib/server";
 

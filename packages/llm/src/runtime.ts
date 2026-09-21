@@ -3,7 +3,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
-import { getActiveConnection, type Db, type EffortKind, type LlmConnection, type ModelInfo } from "@jh/db";
+import { getActiveConnection, type Db, type EffortKind, type LlmConnection, type ModelInfo } from "@prowl/db";
 import { findCatalogModel } from "./catalog";
 import { AUTO_EFFORT, effortForTask, effortInfo, pickEffort, providerOptionsFor } from "./effort";
 import { connectionBaseUrl, toModelInfo } from "./models";
@@ -153,7 +153,7 @@ export async function buildModel(db: Db, conn: LlmConnection, sel: ResolvedSelec
 
   switch (conn.sdk) {
     case "env": {
-      // Legacy configuration from .env (JH_LLM_PROVIDER and friends).
+      // Legacy configuration from .env (PROWL_LLM_PROVIDER and friends).
       const legacy = resolveProviderConfig();
       return out(createLegacyModel(legacy, tier), legacy.provider === "chatgpt-oauth");
     }

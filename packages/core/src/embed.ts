@@ -1,4 +1,4 @@
-import { dataPath, logger, normalizeText } from "@jh/shared";
+import { dataPath, logger, normalizeText } from "@prowl/shared";
 
 const log = logger("embed");
 
@@ -10,11 +10,11 @@ const log = logger("embed");
 
 type Extractor = (texts: string | string[], opts: { pooling: "mean"; normalize: boolean }) => Promise<{ tolist(): number[][] }>;
 
-const MODEL_ID = process.env.JH_EMBED_MODEL ?? "Xenova/all-MiniLM-L6-v2";
+const MODEL_ID = process.env.PROWL_EMBED_MODEL ?? "Xenova/all-MiniLM-L6-v2";
 let extractorPromise: Promise<Extractor | null> | undefined;
 
 async function getExtractor(): Promise<Extractor | null> {
-  if (process.env.JH_EMBED_DISABLE === "1") return null;
+  if (process.env.PROWL_EMBED_DISABLE === "1") return null;
   extractorPromise ??= (async () => {
     try {
       const t = await import("@huggingface/transformers");

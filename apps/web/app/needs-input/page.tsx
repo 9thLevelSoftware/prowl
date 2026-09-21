@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { and, desc, eq, schema as s } from "@jh/db";
-import { APPLIABLE_ATS } from "@jh/shared";
+import { and, desc, eq, schema as s } from "@prowl/db";
+import { APPLIABLE_ATS } from "@prowl/shared";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, buttonClass, timeAgo } from "@/components/ui";
 import { ActionButton } from "@/components/action";
 import { markSubmittedManuallyAction, retryApplyAction, skipApplicationAction, submitForRealAction } from "@/lib/actions/pipeline";

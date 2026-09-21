@@ -1,8 +1,8 @@
-import { eq, existingSourceKeys, getActiveProfile, getInterview, getPreferences, schema as s, updateInterview, upsertSuggestion, type Db, type QueueTask } from "@jh/db";
-import type { LlmClient } from "@jh/llm";
-import { InterviewDraft } from "@jh/core";
-import { Preferences, logger, type RawJob } from "@jh/shared";
-import { Firecrawl, buildSources, detectAts, getWebSearch } from "@jh/sources";
+import { eq, existingSourceKeys, getActiveProfile, getInterview, getPreferences, schema as s, updateInterview, upsertSuggestion, type Db, type QueueTask } from "@prowl/db";
+import type { LlmClient } from "@prowl/llm";
+import { InterviewDraft } from "@prowl/core";
+import { Preferences, logger, type RawJob } from "@prowl/shared";
+import { Firecrawl, buildSources, detectAts, getWebSearch } from "@prowl/sources";
 import { emit } from "./events";
 
 const log = logger("sources");

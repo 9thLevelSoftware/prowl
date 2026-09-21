@@ -1,5 +1,5 @@
 {
-  "name": "@jh/shared",
+  "name": "@prowl/shared",
   "private": true,
   "version": "0.1.0",
   "type": "module",

@@ -1,5 +1,5 @@
 {
-  "name": "@jh/worker",
+  "name": "@prowl/worker",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -13,17 +13,17 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@jh/shared": "workspace:*",
-    "@jh/db": "workspace:*",
-    "@jh/llm": "workspace:*",
-    "@jh/core": "workspace:*",
-    "@jh/sources": "workspace:*",
-    "@jh/documents": "workspace:*",
-    "@jh/applier": "workspace:*",
+    "@prowl/shared": "workspace:*",
+    "@prowl/db": "workspace:*",
+    "@prowl/llm": "workspace:*",
+    "@prowl/core": "workspace:*",
+    "@prowl/sources": "workspace:*",
+    "@prowl/documents": "workspace:*",
+    "@prowl/applier": "workspace:*",
     "croner": "^9.1.0",
     "dotenv": "^17.2.0",
     "drizzle-orm": "^0.44.0",
-    "@jh/browser": "workspace:*"
+    "@prowl/browser": "workspace:*"
   },
   "devDependencies": {}
 }

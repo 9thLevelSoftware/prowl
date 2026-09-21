@@ -4,7 +4,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
-import { dataPath, LOCAL_USER_ID, REPO_ROOT } from "@jh/shared";
+import { dataPath, LOCAL_USER_ID, REPO_ROOT } from "@prowl/shared";
 import * as schema from "./schema";
 
 export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
@@ -12,7 +12,7 @@ export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Data
 const globalForDb = globalThis as unknown as { __jhDb?: Db };
 
 export function dbFilePath(): string {
-  return process.env.JH_DB_PATH ?? dataPath("job-hunter.sqlite");
+  return process.env.PROWL_DB_PATH ?? dataPath("prowl.sqlite");
 }
 
 function migrationsFolder(): string {

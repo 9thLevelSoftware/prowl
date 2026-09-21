@@ -1,5 +1,5 @@
-import { ADAPTERS } from "@jh/sources";
-import { Preferences } from "@jh/shared";
+import { ADAPTERS } from "@prowl/sources";
+import { Preferences } from "@prowl/shared";
 const prefs = Preferences.parse({ targetTitles: ["Software Engineer"] });
 const ctx = { prefs, progress: (m: string) => console.log("  ·", m) };
 for (const [type, cfg] of [["greenhouse", { boardToken: "stripe", companyName: "Stripe" }], ["lever", { company: "palantir", companyName: "Palantir" }], ["ashby", { org: "ramp", companyName: "Ramp" }]] as const) {

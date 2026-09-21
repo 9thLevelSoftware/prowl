@@ -1,4 +1,4 @@
-import type { SourceType } from "@jh/shared";
+import type { SourceType } from "@prowl/shared";
 import type { SourceAdapter } from "./types";
 import { greenhouse } from "./adapters/greenhouse";
 import { lever } from "./adapters/lever";

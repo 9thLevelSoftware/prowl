@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, Eye, EyeOff, Loader2, Search, X } from "lucide-react";
-import type { ProviderSummary } from "@jh/llm/catalog";
+import type { ProviderSummary } from "@prowl/llm/catalog";
 import { Badge, Button, Input, Label, LabelText, Notice, cn } from "@/components/ui";
 import { ResultMessage, useAction } from "@/components/action";
 import { createApiKeyConnectionAction, startChatGptSignInAction, startGeminiSignInAction } from "@/lib/actions/llm";
@@ -168,7 +168,7 @@ function ChatGptStep({ onAdded }: { onAdded: (id: string) => void }) {
   const signIn = useSignIn((id) => onAdded(id));
   return (
     <div className="flex flex-col gap-4">
-      <p>Use the models included with your ChatGPT plan. You'll sign in on OpenAI's own page; Job Hunter never sees your password.</p>
+      <p>Use the models included with your ChatGPT plan. You'll sign in on OpenAI's own page; Prowl never sees your password.</p>
       <Notice tone="neutral">
         This uses the ChatGPT sign-in that OpenAI provides for Codex (
         <a className="underline" href="https://learn.chatgpt.com/docs/auth?surface=app" target="_blank" rel="noreferrer">

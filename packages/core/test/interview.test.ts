@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { openDb, runMigrations, saveProfileVersion, getActiveProfile, getPreferences, schema as s, upsertSuggestion, type Db } from "@jh/db";
+import { openDb, runMigrations, saveProfileVersion, getActiveProfile, getPreferences, schema as s, upsertSuggestion, type Db } from "@prowl/db";
 import { applyInterview, answerInterview, buildFacts, finishInterview, hasEvidence, InterviewDraft, InterviewTurnOut, mergeTurn, nearDuplicate, splitAvoidList, startInterview, type InterviewDraft as Draft } from "../src";
 import { profile } from "./fixtures";
 
-process.env.JH_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "jh-iv-data-"));
+process.env.PROWL_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "prowl-iv-data-"));
 
 /** Scripted stand-in for the AI client: returns queued outputs per task, recording prompts. */
 function fakeLlm(script: Record<string, unknown[]>) {

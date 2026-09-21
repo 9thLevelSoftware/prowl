@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp, Check, Circle, Loader2, Minus, RotateCcw, Sparkles } from "lucide-react";
-import type { InterviewMessage } from "@jh/db/schema";
-import type { InterviewDraft } from "@jh/core/interview";
+import type { InterviewMessage } from "@prowl/db/schema";
+import type { InterviewDraft } from "@prowl/core/interview";
 import { Badge, Button, Card, CardBody, CardHeader, Textarea, cn } from "@/components/ui";
 import { answerInterviewAction, finishInterviewAction, startOverAction } from "@/lib/actions/interview";
 

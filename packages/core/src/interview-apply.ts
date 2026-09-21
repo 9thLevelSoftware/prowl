@@ -9,9 +9,9 @@ import {
   schema as s,
   updateInterview,
   type Db,
-} from "@jh/db";
-import { LOCAL_USER_ID, type ProfileData } from "@jh/shared";
-import { renderResumeFiles, resolveBaseline } from "@jh/documents";
+} from "@prowl/db";
+import { LOCAL_USER_ID, type ProfileData } from "@prowl/shared";
+import { renderResumeFiles, resolveBaseline } from "@prowl/documents";
 import { buildFacts, normalizeProfile } from "./profile";
 import { InterviewDraft, InterviewError, type ProfileAddition } from "./interview";
 

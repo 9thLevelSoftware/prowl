@@ -1,5 +1,5 @@
 {
-  "name": "@jh/core",
+  "name": "@prowl/core",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,14 +11,14 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@jh/shared": "workspace:*",
-    "@jh/db": "workspace:*",
-    "@jh/llm": "workspace:*",
-    "@jh/documents": "workspace:*",
+    "@prowl/shared": "workspace:*",
+    "@prowl/db": "workspace:*",
+    "@prowl/llm": "workspace:*",
+    "@prowl/documents": "workspace:*",
     "@huggingface/transformers": "^3.7.0",
     "zod": "^4.1.0",
     "drizzle-orm": "^0.44.0",
-    "@jh/applier": "workspace:*"
+    "@prowl/applier": "workspace:*"
   },
   "devDependencies": {}
 }

@@ -7,9 +7,9 @@ loadEnvConfig(path.join(process.cwd(), "../.."));
 
 const config: NextConfig = {
   // A second dev server (for example against demo data) needs its own build folder.
-  distDir: process.env.JH_NEXT_DIST_DIR || ".next",
+  distDir: process.env.PROWL_NEXT_DIST_DIR || ".next",
   // Workspace packages ship TypeScript source.
-  transpilePackages: ["@jh/shared", "@jh/db", "@jh/core", "@jh/documents", "@jh/llm", "@jh/sources", "@jh/applier", "@jh/browser"],
+  transpilePackages: ["@prowl/shared", "@prowl/db", "@prowl/core", "@prowl/documents", "@prowl/llm", "@prowl/sources", "@prowl/applier", "@prowl/browser"],
   // Native and very large server-only deps must not be bundled.
   serverExternalPackages: ["better-sqlite3", "@napi-rs/keyring", "playwright", "playwright-core", "@huggingface/transformers", "onnxruntime-node", "sharp", "unpdf", "mammoth", "docx", "cheerio", "robots-parser"],
   outputFileTracingRoot: path.join(process.cwd(), "../.."),

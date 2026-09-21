@@ -1,5 +1,5 @@
 import type { Page, Locator } from "playwright";
-import { randomBetween, sleep } from "@jh/shared";
+import { randomBetween, sleep } from "@prowl/shared";
 import { formFrames, scopedOptions, type FormQuestion } from "./extract";
 import { matchOption, type PlannedAnswer } from "./answers";
 

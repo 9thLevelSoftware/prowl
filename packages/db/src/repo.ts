@@ -7,7 +7,7 @@ import {
   type ProfileData,
   type ProfileFact,
   type TaskType,
-} from "@jh/shared";
+} from "@prowl/shared";
 import type { Db } from "./client";
 import * as s from "./schema";
 

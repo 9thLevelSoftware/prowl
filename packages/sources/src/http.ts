@@ -1,5 +1,5 @@
 import robotsParser from "robots-parser";
-import { sleep } from "@jh/shared";
+import { sleep } from "@prowl/shared";
 
 export const USER_AGENT = "JobHunterPersonal/0.1 (personal job search assistant; single user)";
 

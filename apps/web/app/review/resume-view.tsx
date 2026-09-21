@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import type { AuditItem, CoverLetter, ProfileData, ProfileFact, TailoredResume } from "@jh/shared/schemas";
+import type { AuditItem, CoverLetter, ProfileData, ProfileFact, TailoredResume } from "@prowl/shared/schemas";
 import { Badge, Button, Card, CardBody, CardHeader, Input, Textarea, cn } from "@/components/ui";
 import { ResultMessage, useAction } from "@/components/action";
 import { saveCoverLetterEdits, saveTailoredEdits } from "@/lib/actions/pipeline";

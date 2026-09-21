@@ -1,5 +1,5 @@
-import { and, desc, eq, schema as s } from "@jh/db";
-import type { ApplicationStatus, OutcomeStatus } from "@jh/shared";
+import { and, desc, eq, schema as s } from "@prowl/db";
+import type { ApplicationStatus, OutcomeStatus } from "@prowl/shared";
 import { db, USER } from "@/lib/server";
 
 export const dynamic = "force-dynamic";

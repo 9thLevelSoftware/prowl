@@ -6,6 +6,6 @@ export default defineConfig({
     environment: "node",
     testTimeout: 300_000,
     fileParallelism: false,
-    env: { JH_LOG_LEVEL: "warn" },
+    env: { PROWL_LOG_LEVEL: "warn" },
   },
 });

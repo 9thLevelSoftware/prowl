@@ -1,4 +1,4 @@
-import type { ConnectionSdk, EffortKind } from "@jh/db";
+import type { ConnectionSdk, EffortKind } from "@prowl/db";
 import type { CatalogModel } from "./catalog";
 
 export interface EffortInfo {

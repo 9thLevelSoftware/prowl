@@ -3,8 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
-import type { Preferences } from "@jh/shared/schemas";
-import type { InterviewDraft } from "@jh/core/interview";
+import type { Preferences } from "@prowl/shared/schemas";
+import type { InterviewDraft } from "@prowl/core/interview";
 import { Badge, Button, Card, CardBody, CardHeader, Input, Notice, cn } from "@/components/ui";
 import { PreferencesFields } from "@/app/preferences/form";
 import { applyInterviewAction, findMoreSourcesAction } from "@/lib/actions/interview";

@@ -43,7 +43,7 @@ export function Nav({ counts, worker }: { counts: Record<string, number>; worker
     <nav className="flex h-full flex-col gap-0.5 p-3">
       <Link href="/" className="mb-4 flex items-center gap-2 px-2 pt-1">
         <span className="grid size-7 place-items-center rounded-md bg-accent text-[13px] font-bold text-white dark:text-[#10131c]">JH</span>
-        <span className="font-semibold tracking-tight">Job Hunter</span>
+        <span className="font-semibold tracking-tight">Prowl</span>
       </Link>
       {ITEMS.map((item, i) => {
         if ("section" in item) {

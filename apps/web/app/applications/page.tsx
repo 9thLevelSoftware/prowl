@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { and, desc, eq, like, or, schema as s, sql } from "@jh/db";
-import { APPLICATION_STATUSES, OUTCOME_STATUSES } from "@jh/shared";
+import { and, desc, eq, like, or, schema as s, sql } from "@prowl/db";
+import { APPLICATION_STATUSES, OUTCOME_STATUSES } from "@prowl/shared";
 import { Badge, Button, Card, EmptyState, Input, OUTCOME_META, PageHeader, STATUS_META, Select, StatusBadge, Table, Td, Th, buttonClass, formatDateTime } from "@/components/ui";
 import { db, fileUrl, USER } from "@/lib/server";
 

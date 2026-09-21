@@ -1,11 +1,11 @@
 import { z } from "zod";
-import type { LlmClient } from "@jh/llm";
+import type { LlmClient } from "@prowl/llm";
 import {
   ProfileData,
   ProfileExtractOut,
   type ProfileFact,
   type ProfileData as ProfileDataT,
-} from "@jh/shared";
+} from "@prowl/shared";
 import { bulletDraftSystemPrompt, summaryDraftSystemPrompt } from "./resume-craft";
 
 const EXTRACT_SYSTEM = `You convert resumes into structured JSON.

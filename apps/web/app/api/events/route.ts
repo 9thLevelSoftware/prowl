@@ -1,4 +1,4 @@
-import { WORKER_URL } from "@jh/shared";
+import { WORKER_URL } from "@prowl/shared";
 
 export const dynamic = "force-dynamic";
 

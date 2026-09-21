@@ -1,5 +1,5 @@
-import { ProfileData, type JobRequirements, type Preferences } from "@jh/shared";
-import { Preferences as PrefSchema } from "@jh/shared";
+import { ProfileData, type JobRequirements, type Preferences } from "@prowl/shared";
+import { Preferences as PrefSchema } from "@prowl/shared";
 
 export const profile: ProfileData = ProfileData.parse({
   contact: { fullName: "Jordan Rivera", email: "jordan@example.com", phone: "555-0100", location: "Austin, TX", links: [] },

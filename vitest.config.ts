@@ -6,6 +6,6 @@ export default defineConfig({
     exclude: ["**/*.golden.test.ts", "**/node_modules/**"],
     environment: "node",
     testTimeout: 60_000,
-    env: { JH_EMBED_DISABLE: "1", JH_LOG_LEVEL: "warn" },
+    env: { PROWL_EMBED_DISABLE: "1", PROWL_LOG_LEVEL: "warn" },
   },
 });

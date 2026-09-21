@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq, schema as s } from "@jh/db";
+import { and, asc, eq, schema as s } from "@prowl/db";
 import { Badge, Card, CardBody, CardHeader, LinkButton, Notice, PageHeader, StatusBadge, buttonClass, formatDateTime } from "@/components/ui";
 import { ActionButton } from "@/components/action";
 import { markSubmittedManuallyAction, retryApplyAction } from "@/lib/actions/pipeline";

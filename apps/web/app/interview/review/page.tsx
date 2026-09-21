@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { and, eq, getActiveProfile, getOpenInterview, getPreferences, inArray, listSuggestions, schema as s } from "@jh/db";
-import { InterviewDraft } from "@jh/core";
+import { and, eq, getActiveProfile, getOpenInterview, getPreferences, inArray, listSuggestions, schema as s } from "@prowl/db";
+import { InterviewDraft } from "@prowl/core";
 import { PageHeader } from "@/components/ui";
 import { db, USER } from "@/lib/server";
 import { ReviewForm } from "./review-form";

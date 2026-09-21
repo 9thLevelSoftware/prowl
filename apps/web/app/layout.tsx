@@ -5,7 +5,7 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { navCounts, workerOnline } from "@/lib/server";
 
 export const metadata: Metadata = {
-  title: "Job Hunter",
+  title: "Prowl",
   description: "Find matching jobs, tailor truthful applications, and track every submission.",
 };
 

@@ -11,10 +11,10 @@ import {
   type Db,
   type Interview,
   type InterviewMessage,
-} from "@jh/db";
-import type { LlmClient } from "@jh/llm";
-import { COMMON_QUESTIONS } from "@jh/applier/qa-seed";
-import { LOCAL_USER_ID, Preferences, RemotePolicy, Seniority, normalizeText, usableKeywords, type ProfileData } from "@jh/shared";
+} from "@prowl/db";
+import type { LlmClient } from "@prowl/llm";
+import { COMMON_QUESTIONS } from "@prowl/applier/qa-seed";
+import { LOCAL_USER_ID, Preferences, RemotePolicy, Seniority, normalizeText, usableKeywords, type ProfileData } from "@prowl/shared";
 import { buildFacts, factsToPrompt, yearsOfExperience } from "./profile";
 
 /* ================================== Topics ================================= */

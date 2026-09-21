@@ -12,14 +12,14 @@ import {
   transitionApplication,
   type Db,
   type QueueTask,
-} from "@jh/db";
-import type { LlmClient } from "@jh/llm";
-import { APPLIABLE_ATS, logger, randomBetween, type SourceType } from "@jh/shared";
-import { ingestJobs, processJob, tailorApplication } from "@jh/core";
-import { Firecrawl, getAdapter, prefilter } from "@jh/sources";
+} from "@prowl/db";
+import type { LlmClient } from "@prowl/llm";
+import { APPLIABLE_ATS, logger, randomBetween, type SourceType } from "@prowl/shared";
+import { ingestJobs, processJob, tailorApplication } from "@prowl/core";
+import { Firecrawl, getAdapter, prefilter } from "@prowl/sources";
 import { suggestLearnedBoards } from "./sources-task";
-import { applyOnPage, type ApplyOutcome } from "@jh/applier";
-import { newPage, withBrowserLock } from "@jh/browser";
+import { applyOnPage, type ApplyOutcome } from "@prowl/applier";
+import { newPage, withBrowserLock } from "@prowl/browser";
 import { emit } from "./events";
 
 const log = logger("worker");

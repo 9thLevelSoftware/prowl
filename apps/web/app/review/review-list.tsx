@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { APPLIABLE_ATS, type AtsType } from "@jh/shared/schemas";
+import { APPLIABLE_ATS, type AtsType } from "@prowl/shared/schemas";
 import { Badge, Button, Card, ScoreBadge, Table, Td, Th, timeAgo } from "@/components/ui";
 import { ResultMessage, useAction } from "@/components/action";
 import { approveManyAction } from "@/lib/actions/pipeline";

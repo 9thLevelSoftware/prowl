@@ -12,7 +12,7 @@ import {
   updateConnection,
   type ConnectionSdk,
   type LlmConnection,
-} from "@jh/db";
+} from "@prowl/db";
 import {
   deleteSecrets,
   getCatalog,
@@ -24,7 +24,7 @@ import {
   setSecret,
   startGoogleSignIn,
   startOpenAiSignIn,
-} from "@jh/llm";
+} from "@prowl/llm";
 import { db, USER, worker } from "../server";
 import type { ActionResult } from "./profile";
 

@@ -1,4 +1,4 @@
-import { and, desc, eq, schema as s } from "@jh/db";
+import { and, desc, eq, schema as s } from "@prowl/db";
 import { EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { db, USER } from "@/lib/server";
 import { ReviewList, type ReviewRow } from "./review-list";

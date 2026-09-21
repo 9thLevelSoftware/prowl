@@ -1,7 +1,7 @@
 import "server-only";
 import path from "node:path";
-import { getDb, runMigrations, latestHeartbeat, schema as s, sql, eq, and, type Db } from "@jh/db";
-import { LOCAL_USER_ID, WORKER_URL, dataDir } from "@jh/shared";
+import { getDb, runMigrations, latestHeartbeat, schema as s, sql, eq, and, type Db } from "@prowl/db";
+import { LOCAL_USER_ID, WORKER_URL, dataDir } from "@prowl/shared";
 
 // Module-level (not global) so a hot reload with new migrations applies them.
 let migrated = false;

@@ -4,7 +4,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
-import { Preferences, ProfileData } from "@jh/shared";
+import { Preferences, ProfileData } from "@prowl/shared";
 
 /* Mock Greenhouse, Lever, Ashby, a company careers page, and a Firecrawl server. */
 const gh: Record<string, { name: string; content: string; jobs: { id: number; title: string }[] }> = {
@@ -60,10 +60,10 @@ let base = "";
 beforeAll(async () => {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  process.env.JH_GREENHOUSE_API = `${base}/gh`;
-  process.env.JH_LEVER_API = `${base}/lever`;
-  process.env.JH_ASHBY_API = `${base}/ashby`;
-  process.env.JH_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "jh-builder-"));
+  process.env.PROWL_GREENHOUSE_API = `${base}/gh`;
+  process.env.PROWL_LEVER_API = `${base}/lever`;
+  process.env.PROWL_ASHBY_API = `${base}/ashby`;
+  process.env.PROWL_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "prowl-builder-"));
   delete process.env.ADZUNA_APP_ID;
 });
 afterAll(() => server.close());
@@ -85,10 +85,10 @@ describe("slugs and identity", () => {
 
 describe("buildSources", () => {
   it("verifies boards, flags wrong-company slug collisions, finds careers-page embeds, and learns boards", async () => {
-    const { openDb, runMigrations, listSuggestions, schema: s } = await import("@jh/db");
+    const { openDb, runMigrations, listSuggestions, schema: s } = await import("@prowl/db");
     const b = await import("../src/builder");
     const { Firecrawl } = await import("../src/web/firecrawl");
-    const db = openDb(path.join(process.env.JH_DATA_DIR!, "b.sqlite"));
+    const db = openDb(path.join(process.env.PROWL_DATA_DIR!, "b.sqlite"));
     runMigrations(db);
     // A job already found through another source points at a Lever board.
     db.insert(s.jobs).values({ sourceType: "adzuna", externalId: "x", dedupKey: "x", title: "Staff Backend Engineer", company: "Ledgerly", applyUrl: "https://jobs.lever.co/ledgerly/l0/apply", atsType: "lever" }).run();
@@ -130,7 +130,7 @@ describe("buildSources", () => {
     expect(careersHits).toBeGreaterThan(0);
 
     // Re-running keeps dismissed suggestions dismissed.
-    db.update(s.sourceSuggestions).set({ status: "dismissed" }).where((await import("@jh/db")).eq(s.sourceSuggestions.key, "greenhouse:acmepay")).run();
+    db.update(s.sourceSuggestions).set({ status: "dismissed" }).where((await import("@prowl/db")).eq(s.sourceSuggestions.key, "greenhouse:acmepay")).run();
     await b.buildSources(db, { runId: "run2", profile, prefs, hints: { pursue: [], avoid: [], industries: [], stageOrSize: [] }, llm: llm as any, webSearch, firecrawl: null, progress: () => undefined });
     expect(listSuggestions(db, ["dismissed"]).map((r) => r.key)).toEqual(["greenhouse:acmepay"]);
   });

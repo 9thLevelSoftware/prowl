@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, getActiveConnection, getActiveProfile, getOpenInterview, getPreferences, schema as s, sql } from "@jh/db";
+import { and, eq, getActiveConnection, getActiveProfile, getOpenInterview, getPreferences, schema as s, sql } from "@prowl/db";
 import { db, USER } from "./server";
 
 export interface Step {

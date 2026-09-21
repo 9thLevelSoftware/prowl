@@ -1,6 +1,6 @@
-import type { Db } from "@jh/db";
-import type { LlmClient } from "@jh/llm";
-import { logger } from "@jh/shared";
+import type { Db } from "@prowl/db";
+import type { LlmClient } from "@prowl/llm";
+import { logger } from "@prowl/shared";
 import { Firecrawl } from "./firecrawl";
 
 const log = logger("websearch");

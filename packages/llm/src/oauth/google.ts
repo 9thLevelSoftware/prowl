@@ -5,8 +5,8 @@ import { decodeJwt } from "./pkce";
  * "Desktop app" OAuth client. Desktop clients accept any loopback port.
  */
 
-export const googleAuthUrl = () => process.env.JH_GOOGLE_AUTH_URL ?? "https://accounts.google.com/o/oauth2/v2/auth";
-export const googleTokenUrl = () => process.env.JH_GOOGLE_TOKEN_URL ?? "https://oauth2.googleapis.com/token";
+export const googleAuthUrl = () => process.env.PROWL_GOOGLE_AUTH_URL ?? "https://accounts.google.com/o/oauth2/v2/auth";
+export const googleTokenUrl = () => process.env.PROWL_GOOGLE_TOKEN_URL ?? "https://oauth2.googleapis.com/token";
 export const GEMINI_SCOPES = [
   "https://www.googleapis.com/auth/cloud-platform",
   "https://www.googleapis.com/auth/generative-language.retriever",

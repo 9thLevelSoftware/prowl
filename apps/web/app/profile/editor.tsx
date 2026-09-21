@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Trash2, ChevronUp, ChevronDown, Sparkles, Loader2, Check } from "lucide-react";
-import type { ProfileData } from "@jh/shared/schemas";
+import type { ProfileData } from "@prowl/shared/schemas";
 import { Badge, Button, Card, CardBody, CardHeader, Input, Label, LabelText, Textarea, cn } from "@/components/ui";
 import { ResultMessage, useAction, type Result } from "@/components/action";
 import { draftBullets, draftSummaryAction, saveProfile } from "@/lib/actions/profile";

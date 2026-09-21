@@ -1,4 +1,4 @@
-import type { AtsType } from "@jh/shared";
+import type { AtsType } from "@prowl/shared";
 
 /** Identify the ATS behind a URL, and the board identifier where it can be derived. */
 export function detectAts(url: string): { ats: AtsType; board?: string; jobId?: string } {

@@ -1,4 +1,4 @@
-import type { LlmClient } from "@jh/llm";
+import type { LlmClient } from "@prowl/llm";
 import {
   AuditReportOut,
   CoverLetterOut,
@@ -10,8 +10,8 @@ import {
   type ProfileData,
   type ProfileFact,
   type TailoredResume,
-} from "@jh/shared";
-import { resolveBaseline, resolveTailored, resumeToText } from "@jh/documents";
+} from "@prowl/shared";
+import { resolveBaseline, resolveTailored, resumeToText } from "@prowl/documents";
 import { factsToPrompt } from "./profile";
 import { coverLetterSystemPrompt, tailorSystemPrompt } from "./resume-craft";
 import { findSkill, textMentions } from "./skills";

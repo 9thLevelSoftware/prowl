@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { and, eq, existingSourceKeys, inArray, schema as s, upsertSuggestion, type Db } from "@jh/db";
-import type { LlmClient } from "@jh/llm";
-import { APPLIABLE_ATS, LOCAL_USER_ID, logger, normalizeText, type Preferences, type ProfileData, type RawJob, type SourceType } from "@jh/shared";
+import { and, eq, existingSourceKeys, inArray, schema as s, upsertSuggestion, type Db } from "@prowl/db";
+import type { LlmClient } from "@prowl/llm";
+import { APPLIABLE_ATS, LOCAL_USER_ID, logger, normalizeText, type Preferences, type ProfileData, type RawJob, type SourceType } from "@prowl/shared";
 import { detectAts, findEmbeddedBoards } from "./ats";
 import { politeFetch } from "./http";
 import { prefilter, titleMatchStrength } from "./filter";

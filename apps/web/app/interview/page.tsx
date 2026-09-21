@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { getActiveProfile, getOpenInterview } from "@jh/db";
-import { InterviewDraft, TOPICS } from "@jh/core";
+import { getActiveProfile, getOpenInterview } from "@prowl/db";
+import { InterviewDraft, TOPICS } from "@prowl/core";
 import { Card, CardBody, LinkButton, PageHeader } from "@/components/ui";
 import { db, USER } from "@/lib/server";
 import { InterviewChat } from "./chat";

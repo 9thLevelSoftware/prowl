@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import { and, desc, eq, getActiveProfile, gte, like, or, schema as s, sql } from "@jh/db";
-import { APPLIABLE_ATS } from "@jh/shared";
+import { and, desc, eq, getActiveProfile, gte, like, or, schema as s, sql } from "@prowl/db";
+import { APPLIABLE_ATS } from "@prowl/shared";
 import { Badge, Card, EmptyState, Input, LinkButton, PageHeader, ScoreBadge, Select, StatusBadge, Table, Td, Th, Button, money, timeAgo } from "@/components/ui";
 import { ActionButton } from "@/components/action";
 import { setJobStatus, tailorJob } from "@/lib/actions/pipeline";

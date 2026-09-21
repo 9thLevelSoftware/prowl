@@ -12,7 +12,7 @@ import type {
   OutcomeStatus,
   AtsType,
   SourceType,
-} from "@jh/shared";
+} from "@prowl/shared";
 
 /*
  * Conventions (keep the schema portable to Postgres for the hosted version):
@@ -337,7 +337,7 @@ export const interviews = sqliteTable(
     profileId: text("profile_id").references(() => profiles.id, { onDelete: "set null" }),
     status: text("status").$type<"active" | "review" | "applied" | "abandoned">().notNull().default("active"),
     messages: text("messages", { mode: "json" }).$type<InterviewMessage[]>().notNull(),
-    /** InterviewDraft from @jh/core, stored as JSON. */
+    /** InterviewDraft from @prowl/core, stored as JSON. */
     draft: text("draft", { mode: "json" }).$type<Record<string, any>>().notNull(),
     careerSummary: text("career_summary").notNull().default(""),
     sourceRunId: text("source_run_id"),

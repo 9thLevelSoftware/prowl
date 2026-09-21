@@ -1,4 +1,4 @@
-# Job Hunter
+# Prowl
 
 A local-first job application system. It reads your resume, finds matching jobs, tailors a truthful ATS-friendly resume and cover letter for each one, applies from your own browser after you approve, and records every application.
 
@@ -43,7 +43,7 @@ After connecting, pick a **main model** and a **fast model**. Each dropdown list
 
 API keys and sign-in tokens are encrypted on this computer with a key held in the system keychain. The ChatGPT sign-in is subject to OpenAI's terms and counts against your plan's limits.
 
-Legacy `.env` configuration (`JH_LLM_PROVIDER` plus credentials) still works when no connection has been added.
+Legacy `.env` configuration (`PROWL_LLM_PROVIDER` plus credentials) still works when no connection has been added.
 
 ### Optional
 
@@ -57,8 +57,9 @@ Legacy `.env` configuration (`JH_LLM_PROVIDER` plus credentials) still works whe
 | --- | --- |
 | `pnpm dev` | Migrates the database and starts the web app and worker |
 | `pnpm test` | Unit and integration tests. The applier tests use a local mock ATS; no network or AI needed. |
-| `pnpm test:golden` | Real-AI tests for extraction fidelity, zero fabrications, and whether the auditor catches injected fabrications. Uses your configured provider. |
+| `pnpm test:golden` | Real-AI tests (`PROWL_GOLDEN=1`) for extraction fidelity, zero fabrications, and auditor behavior. Uses your configured provider. |
 | `pnpm typecheck` | Type-checks every package |
+| `pnpm --filter @prowl/<pkg> typecheck` | Type-checks one package |
 | `pnpm seed:demo` then `pnpm dev:demo` | Loads demo data into `./data-demo` without any AI calls and runs the app against it, separate from your real data. |
 | `pnpm db:generate` | Generates a migration after changing `packages/db/src/schema.ts` |
 
@@ -77,6 +78,8 @@ packages/browser  Shared persistent Chrome profile
 packages/applier  Form extraction, answer planning, filling, submission, evidence
 ```
 
+Workspace packages are named `@prowl/*`.
+
 See `docs/architecture.md` for design details.
 
 ## Guardrails
@@ -90,4 +93,17 @@ See `docs/architecture.md` for design details.
 
 ## Data
 
-All data lives in `JH_DATA_DIR`, `./data` by default. That includes the SQLite database, generated documents, screenshots, embedding model cache, and the browser profile holding your job-site sign-ins. **Settings → Delete all data** removes everything.
+All data lives in `PROWL_DATA_DIR`, `./data` by default. That includes the SQLite database (`prowl.sqlite`), generated documents, screenshots, embedding model cache, and the browser profile holding your job-site sign-ins. **Settings → Delete all data** removes everything.
+
+## Migration from Job Hunter
+
+Prowl rebrands the previous **Job Hunter** product. Identifier changes are a **clean break**:
+
+1. Update `.env`: rename every `PROWL_*` variable to `PROWL_*` (see `.env.example`).
+2. The data directory still defaults to `./data`, but the database file is now `prowl.sqlite`.
+   - To keep existing data: copy/rename `data/prowl.sqlite` (and `-wal`/`-shm` if present) to `data/prowl.sqlite`, or set `PROWL_DB_PATH` to the old file.
+3. OS keychain service name is now `prowl`. Previously encrypted secrets may not decrypt under the new master-key entry — re-add AI connections in Settings.
+4. Workspace packages are `@prowl/*` (not `@prowl/*`).
+5. Second web instance (for example demo data): set `PROWL_NEXT_DIST_DIR`.
+6. Golden tests: `PROWL_GOLDEN=1 pnpm test:golden`.
+7. The git remote / local folder may still be named `job-hunter` until you rename them; that does not affect runtime identifiers above.

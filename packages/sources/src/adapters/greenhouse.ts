@@ -1,4 +1,4 @@
-import { htmlToText, type RawJob } from "@jh/shared";
+import { htmlToText, type RawJob } from "@prowl/shared";
 import { getJson } from "../http";
 import type { SourceAdapter } from "../types";
 import { greenhouseApi } from "../endpoints";

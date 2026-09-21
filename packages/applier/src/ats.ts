@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
-import type { AtsType } from "@jh/shared";
-import { sleep } from "@jh/shared";
+import type { AtsType } from "@prowl/shared";
+import { sleep } from "@prowl/shared";
 import { formFrames } from "./extract";
 
 export interface AtsHooks {

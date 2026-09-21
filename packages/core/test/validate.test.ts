@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TailoredResume } from "@jh/shared";
+import type { TailoredResume } from "@prowl/shared";
 import { buildFacts, extractNumbers, unsupportedNumbers, validateTailored, validateCoverLetter } from "../src";
 import { profile } from "./fixtures";
 

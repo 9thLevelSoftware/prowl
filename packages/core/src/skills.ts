@@ -1,4 +1,4 @@
-import { normalizeText, type Skill } from "@jh/shared";
+import { normalizeText, type Skill } from "@prowl/shared";
 
 /**
  * Small built-in synonym table. Used to (a) match job requirements to profile skills and

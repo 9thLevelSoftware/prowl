@@ -1,6 +1,6 @@
-import { getSetting, type Db } from "@jh/db";
-import { getSecret } from "@jh/llm";
-import { logger } from "@jh/shared";
+import { getSetting, type Db } from "@prowl/db";
+import { getSecret } from "@prowl/llm";
+import { logger } from "@prowl/shared";
 
 const log = logger("firecrawl");
 

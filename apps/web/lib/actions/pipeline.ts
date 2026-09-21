@@ -11,9 +11,9 @@ import {
   savePreferences,
   schema as s,
   transitionApplication,
-} from "@jh/db";
-import { getLlm } from "@jh/llm";
-import { Preferences, OutcomeStatus, TailoredResumeOut, type CoverLetter } from "@jh/shared";
+} from "@prowl/db";
+import { getLlm } from "@prowl/llm";
+import { Preferences, OutcomeStatus, TailoredResumeOut, type CoverLetter } from "@prowl/shared";
 import {
   acceptAuditFlags,
   approveApplication,
@@ -24,8 +24,8 @@ import {
   resumeClaims,
   validateCoverLetter,
   validateTailored,
-} from "@jh/core";
-import { renderCoverLetterFiles, renderResumeFiles, resolveCoverLetter, resolveTailored } from "@jh/documents";
+} from "@prowl/core";
+import { renderCoverLetterFiles, renderResumeFiles, resolveCoverLetter, resolveTailored } from "@prowl/documents";
 import { db, USER, worker } from "../server";
 import type { ActionResult } from "./profile";
 

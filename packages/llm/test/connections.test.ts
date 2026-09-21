@@ -6,10 +6,10 @@ import path from "node:path";
 import type { AddressInfo } from "node:net";
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jh-llm-"));
-process.env.JH_DATA_DIR = tmp;
-process.env.JH_SECRETS_NO_KEYCHAIN = "1";
-process.env.JH_CATALOG_OFFLINE = "1";
-delete process.env.JH_LLM_PROVIDER;
+process.env.PROWL_DATA_DIR = tmp;
+process.env.PROWL_SECRETS_NO_KEYCHAIN = "1";
+process.env.PROWL_CATALOG_OFFLINE = "1";
+delete process.env.PROWL_LLM_PROVIDER;
 
 /* ------------------------------ mock servers ----------------------------- */
 
@@ -88,18 +88,18 @@ let base = "";
 beforeAll(async () => {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  process.env.JH_OPENAI_AUTH_BASE = base;
-  process.env.JH_CHATGPT_BASE_URL = `${base}/codex`;
+  process.env.PROWL_OPENAI_AUTH_BASE = base;
+  process.env.PROWL_CHATGPT_BASE_URL = `${base}/codex`;
   // A free port for the ChatGPT callback so the test never collides with a real `codex login`.
   const probe = http.createServer();
   await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-  process.env.JH_OPENAI_OAUTH_PORT = String((probe.address() as AddressInfo).port);
+  process.env.PROWL_OPENAI_OAUTH_PORT = String((probe.address() as AddressInfo).port);
   await new Promise((r) => probe.close(r));
 });
 afterAll(() => server.close());
 
 const load = async () => {
-  const db = await import("@jh/db");
+  const db = await import("@prowl/db");
   const llm = await import("../src");
   const database = db.openDb(path.join(tmp, "llm.sqlite"));
   db.runMigrations(database);
@@ -265,8 +265,8 @@ describe("ChatGPT sign-in", () => {
 
 describe("Gemini Google sign-in", () => {
   it("creates the connection only after sign-in, then lists models with the project header", async () => {
-    process.env.JH_GOOGLE_TOKEN_URL = `${base}/google/token`;
-    process.env.JH_GOOGLE_AUTH_URL = `${base}/google/auth`;
+    process.env.PROWL_GOOGLE_TOKEN_URL = `${base}/google/token`;
+    process.env.PROWL_GOOGLE_AUTH_URL = `${base}/google/auth`;
     const { db, llm, database } = await load();
     const before = db.listConnections(database).length;
     const start = await llm.startGoogleSignIn(database, { clientId: "1-abc.apps.googleusercontent.com", clientSecret: "g-secret", project: "my-proj" });

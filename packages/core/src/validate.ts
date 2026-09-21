@@ -1,4 +1,4 @@
-import type { CoverLetter, ProfileData, ProfileFact, TailoredResume } from "@jh/shared";
+import type { CoverLetter, ProfileData, ProfileFact, TailoredResume } from "@prowl/shared";
 import { findSkill } from "./skills";
 
 /**
