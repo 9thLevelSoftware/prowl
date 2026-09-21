@@ -1,4 +1,5 @@
 export * from "./skills";
+export * from "./resume-craft";
 export * from "./profile";
 export * from "./embed";
 export * from "./requirements";

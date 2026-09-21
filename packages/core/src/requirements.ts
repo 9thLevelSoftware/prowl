@@ -1,8 +1,8 @@
 import type { LlmClient } from "@jh/llm";
 import { JobRequirementsOut, type JobRequirements } from "@jh/shared";
+import { requirementsSystemPrompt } from "./resume-craft";
 
-const SYSTEM = `You analyze job postings for a candidate-matching system.
-Extract requirements exactly as the posting states them. Do not guess.
+const SYSTEM = `${requirementsSystemPrompt()}
 - mustHaveSkills: skills, tools, or qualifications the posting marks as required (or lists under "requirements"/"qualifications" without "preferred" language). Keep each item short (1-4 words).
 - niceToHaveSkills: items marked preferred, bonus, or nice-to-have.
 - atsKeywords: the exact spellings of hard terms an ATS keyword filter would match (named tools, languages, frameworks, certifications, methodologies, regulations). 5-25 items.
