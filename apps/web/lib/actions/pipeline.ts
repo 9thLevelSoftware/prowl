@@ -11,6 +11,8 @@ import {
   savePreferences,
   schema as s,
   transitionApplication,
+  countPendingOrRunningTasks,
+  PROCESSED_JOB_FANOUT_CAP,
 } from "@prowl/db";
 import { getLlm } from "@prowl/llm";
 import { Preferences, OutcomeStatus, TailoredResumeOut, CoverLetterOut, type CoverLetter } from "@prowl/shared";
@@ -46,8 +48,14 @@ export async function savePreferencesAction(json: string): Promise<ActionResult>
     savePreferences(db(), parsed, USER);
     if (before?.discoveryIntervalHours !== parsed.discoveryIntervalHours) await worker("/schedule/reload", { method: "POST" }).catch(() => undefined);
     const jobs = db().select({ id: s.jobs.id }).from(s.jobs).where(and(eq(s.jobs.userId, USER), eq(s.jobs.isActive, true))).all();
-    for (const j of jobs) enqueue(db(), "process_job", { jobId: j.id }, { dedupKey: `process:${j.id}`, priority: 110, userId: USER });
-    return done(jobs.length ? `Saved. Re-scoring ${jobs.length} jobs.` : "Saved.");
+    const alreadyQueued = countPendingOrRunningTasks(db(), "process_job");
+    const budget = Math.max(0, PROCESSED_JOB_FANOUT_CAP - alreadyQueued);
+    let enqueued = 0;
+    for (const j of jobs) {
+      if (enqueued >= budget) break;
+      if (enqueue(db(), "process_job", { jobId: j.id }, { dedupKey: `process:${j.id}`, priority: 110, userId: USER })) enqueued++;
+    }
+    return done(jobs.length ? `Saved. Re-scoring ${enqueued} jobs.` : "Saved.");
   } catch (err) {
     return fail(err);
   }

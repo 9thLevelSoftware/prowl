@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { enqueue, eq, getActiveProfile, saveProfileVersion, schema as s, and } from "@prowl/db";
+import { enqueue, eq, getActiveProfile, saveProfileVersion, schema as s, and, countPendingOrRunningTasks, PROCESSED_JOB_FANOUT_CAP } from "@prowl/db";
 import { getLlm } from "@prowl/llm";
 import { ProfileData } from "@prowl/shared";
 import { buildFacts, draftBulletsFromNotes, draftSummary, extractProfile, normalizeProfile } from "@prowl/core";
@@ -57,8 +57,14 @@ export async function saveProfile(json: string): Promise<ActionResult> {
       message += ` Baseline PDF could not be rendered: ${(err as Error).message}`;
     }
     const activeJobs = db().select({ id: s.jobs.id }).from(s.jobs).where(and(eq(s.jobs.userId, USER), eq(s.jobs.isActive, true))).all();
-    for (const j of activeJobs) enqueue(db(), "process_job", { jobId: j.id }, { dedupKey: `process:${j.id}`, priority: 110, userId: USER });
-    if (activeJobs.length) message += ` Re-scoring ${activeJobs.length} jobs against the new profile.`;
+    const alreadyQueued = countPendingOrRunningTasks(db(), "process_job");
+    const budget = Math.max(0, PROCESSED_JOB_FANOUT_CAP - alreadyQueued);
+    let enqueued = 0;
+    for (const j of activeJobs) {
+      if (enqueued >= budget) break;
+      if (enqueue(db(), "process_job", { jobId: j.id }, { dedupKey: `process:${j.id}`, priority: 110, userId: USER })) enqueued++;
+    }
+    if (enqueued) message += ` Re-scoring ${enqueued} jobs against the new profile.`;
     revalidatePath("/", "layout");
     return { ok: true, message };
   } catch (err) {

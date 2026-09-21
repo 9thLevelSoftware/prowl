@@ -8,6 +8,8 @@ import {
   saveProfileVersion,
   schema as s,
   updateInterview,
+  countPendingOrRunningTasks,
+  PROCESSED_JOB_FANOUT_CAP,
   type Db,
 } from "@prowl/db";
 import { LOCAL_USER_ID, type Preferences, type ProfileData } from "@prowl/shared";
@@ -174,7 +176,13 @@ export async function applyInterview(db: Db, interviewId: string, selection: App
 
   // Re-score what has already been found against the new preferences and profile.
   const jobs = db.select({ id: s.jobs.id }).from(s.jobs).where(eq(s.jobs.userId, userId)).all();
-  for (const j of jobs) enqueue(db, "process_job", { jobId: j.id }, { dedupKey: `process:${j.id}`, priority: 110, userId });
+  const alreadyQueued = countPendingOrRunningTasks(db, "process_job");
+  const budget = Math.max(0, PROCESSED_JOB_FANOUT_CAP - alreadyQueued);
+  let enqueued = 0;
+  for (const j of jobs) {
+    if (enqueued >= budget) break;
+    if (enqueue(db, "process_job", { jobId: j.id }, { dedupKey: `process:${j.id}`, priority: 110, userId })) enqueued++;
+  }
 
   // Persist a draft that matches what was actually allowed (D-03) so applied state is honest.
   const persistHints: CompanyHints = allowedHints;

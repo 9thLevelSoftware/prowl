@@ -287,7 +287,9 @@ export const queueTasks = sqliteTable(
     dedupKey: text("dedup_key"),
     ...timestamps,
   },
-  (t) => [index("queue_tasks_pick").on(t.status, t.runAfter, t.priority), index("queue_tasks_dedup").on(t.dedupKey, t.status)],
+  (t) => [index("queue_tasks_pick").on(t.status, t.runAfter, t.priority)],
+  /* Partial unique index on (dedup_key) WHERE status IN ('pending','running') is created
+     via raw SQL in migration 0006. Drizzle ORM cannot express WHERE clauses on indexes. */
 );
 
 export const pipelineRuns = sqliteTable("pipeline_runs", {

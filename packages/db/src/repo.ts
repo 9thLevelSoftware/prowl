@@ -116,28 +116,30 @@ export interface EnqueueOptions {
 
 /** Enqueue a task. With a dedupKey, a pending/running task with the same key suppresses the new one. */
 export function enqueue(db: Db, type: TaskType, payload: Record<string, unknown>, opts: EnqueueOptions = {}): string | null {
-  if (opts.dedupKey) {
-    const existing = db
-      .select({ id: s.queueTasks.id })
-      .from(s.queueTasks)
-      .where(and(eq(s.queueTasks.dedupKey, opts.dedupKey), inArray(s.queueTasks.status, ["pending", "running"])))
+  try {
+    const row = db
+      .insert(s.queueTasks)
+      .values({
+        userId: opts.userId ?? LOCAL_USER_ID,
+        type,
+        payload,
+        priority: opts.priority ?? 100,
+        runAfter: (opts.runAfter ?? new Date()).toISOString(),
+        dedupKey: opts.dedupKey ?? null,
+        maxAttempts: opts.maxAttempts ?? 3,
+      })
+      .returning({ id: s.queueTasks.id })
       .get();
-    if (existing) return null;
+    return row.id;
+  } catch (err) {
+    // Partial unique index on (dedup_key) WHERE status IN ('pending','running') enforces dedup.
+    if (opts.dedupKey && isUniqueConstraintViolation(err)) return null;
+    throw err;
   }
-  const row = db
-    .insert(s.queueTasks)
-    .values({
-      userId: opts.userId ?? LOCAL_USER_ID,
-      type,
-      payload,
-      priority: opts.priority ?? 100,
-      runAfter: (opts.runAfter ?? new Date()).toISOString(),
-      dedupKey: opts.dedupKey ?? null,
-      maxAttempts: opts.maxAttempts ?? 3,
-    })
-    .returning({ id: s.queueTasks.id })
-    .get();
-  return row.id;
+}
+
+function isUniqueConstraintViolation(err: unknown): boolean {
+  return err instanceof Error && err.message.includes("UNIQUE constraint failed");
 }
 
 /**
@@ -199,6 +201,19 @@ export function queueStats(db: Db): Record<string, number> {
   return out;
 }
 
+/** Max pending/running process_job tasks a single preference-save or profile-save can create. */
+export const PROCESSED_JOB_FANOUT_CAP = 50;
+
+/** Count pending or running tasks of a given type. Used to cap fan-out enqueues. */
+export function countPendingOrRunningTasks(db: Db, type: TaskType): number {
+  const row = db
+    .select({ n: sql<number>`count(*)` })
+    .from(s.queueTasks)
+    .where(and(eq(s.queueTasks.type, type), inArray(s.queueTasks.status, ["pending", "running"])))
+    .get();
+  return row?.n ?? 0;
+}
+
 /* =========================== Applications ========================= */
 
 export class InvalidTransitionError extends Error {}
@@ -231,19 +246,36 @@ export function transitionApplication(
   message = "",
   patch: Partial<typeof s.applications.$inferInsert> = {},
 ): s.Application {
-  const app = db.select().from(s.applications).where(eq(s.applications.id, applicationId)).get();
-  if (!app) throw new Error(`Application ${applicationId} not found`);
-  if (!canTransition(app.status, to)) {
-    throw new InvalidTransitionError(`Cannot move application from ${app.status} to ${to}`);
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const app = db.select().from(s.applications).where(eq(s.applications.id, applicationId)).get();
+    if (!app) throw new Error(`Application ${applicationId} not found`);
+
+    // Identity transition: app is already at the target status. Allow and log.
+    if (app.status === to) {
+      logApplicationEvent(db, applicationId, `status:${to}`, message || `(already ${to})`, { payload: { from: app.status, to, identity: true } });
+      return app;
+    }
+
+    if (!canTransition(app.status, to)) {
+      throw new InvalidTransitionError(`Cannot move application from ${app.status} to ${to}`);
+    }
+
+    // CAS: update only if the row's current status still matches what we read.
+    const updated = db
+      .update(s.applications)
+      .set({ ...patch, status: to })
+      .where(and(eq(s.applications.id, applicationId), eq(s.applications.status, app.status)))
+      .returning()
+      .get();
+
+    if (updated) {
+      logApplicationEvent(db, applicationId, `status:${to}`, message || `${app.status} → ${to}`, { payload: { from: app.status, to } });
+      return updated;
+    }
+    // CAS mismatch: status changed concurrently — retry.
   }
-  const updated = db
-    .update(s.applications)
-    .set({ ...patch, status: to })
-    .where(eq(s.applications.id, applicationId))
-    .returning()
-    .get();
-  logApplicationEvent(db, applicationId, `status:${to}`, message || `${app.status} → ${to}`, { payload: { from: app.status, to } });
-  return updated;
+  throw new InvalidTransitionError(`Concurrent modification on application ${applicationId}; retries exhausted`);
 }
 
 export function ensureApplication(db: Db, jobId: string, userId = LOCAL_USER_ID): s.Application {
