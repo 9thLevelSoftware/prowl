@@ -77,15 +77,29 @@ export async function saveReviewDraftAction(interviewId: string, draft: unknown)
   }
 }
 
-export async function applyInterviewAction(interviewId: string, draft: unknown, additionIds: string[], suggestionIds: string[]): Promise<ActionResult> {
+export async function applyInterviewAction(
+  interviewId: string,
+  draft: unknown,
+  additionIds: string[],
+  suggestionIds: string[],
+  confirmations?: { preferenceFields?: string[]; companyHints?: string[]; screeningKeys?: string[]; dealbreakers?: string[] },
+): Promise<ActionResult> {
   try {
-    const r = await applyInterview(db(), interviewId, { draft: InterviewDraft.parse(draft), additionIds, suggestionIds }, USER);
+    const r = await applyInterview(db(), interviewId, { draft: InterviewDraft.parse(draft), additionIds, suggestionIds, confirmations }, USER);
     refresh();
+    const dropped = r.dropped;
+    const droppedNotes = [
+      dropped.preferenceFields.length ? `${dropped.preferenceFields.length} setting${dropped.preferenceFields.length === 1 ? "" : "s"} without evidence` : null,
+      dropped.companyHints.length ? `${dropped.companyHints.length} company hint${dropped.companyHints.length === 1 ? "" : "s"}` : null,
+      dropped.screeningKeys.length ? `${dropped.screeningKeys.length} screening answer${dropped.screeningKeys.length === 1 ? "" : "s"}` : null,
+      dropped.dealbreakers.length ? `${dropped.dealbreakers.length} dealbreaker${dropped.dealbreakers.length === 1 ? "" : "s"}` : null,
+    ].filter(Boolean);
     const parts = [
       "Preferences saved",
       r.answersSaved ? `${r.answersSaved} screening answer${r.answersSaved === 1 ? "" : "s"} saved` : null,
       r.profileVersion ? `profile updated to version ${r.profileVersion}` : null,
       r.sourcesAdded ? `${r.sourcesAdded} source${r.sourcesAdded === 1 ? "" : "s"} added and searching now` : null,
+      droppedNotes.length ? `skipped unevidenced items (${droppedNotes.join(", ")})` : null,
     ].filter(Boolean);
     return { ok: true, message: `${parts.join(", ")}.` };
   } catch (err) {

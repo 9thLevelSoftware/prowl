@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import type { Preferences } from "@prowl/shared/schemas";
 import type { InterviewDraft } from "@prowl/core/interview";
-import { Badge, Button, Card, CardBody, CardHeader, Input, Notice, cn } from "@/components/ui";
+import { Badge, Button, Card, CardBody, CardHeader, Checkbox, Input, Notice, cn } from "@/components/ui";
 import { PreferencesFields } from "@/app/preferences/form";
 import { applyInterviewAction, findMoreSourcesAction } from "@/lib/actions/interview";
 
@@ -26,11 +26,30 @@ export interface SuggestionView {
 const TYPE_LABEL: Record<string, string> = { greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", adzuna: "Adzuna search", linkedin: "LinkedIn", indeed: "Indeed", careerpage: "Careers page" };
 const ORIGIN_LABEL: Record<string, string> = { ai: "AI suggestion", web_search: "Web search", learned: "From jobs you found", search: "Search" };
 
+const PREF_LABEL: Record<string, string> = {
+  targetTitles: "Target titles",
+  keywords: "Title keywords",
+  locations: "Locations",
+  remotePolicy: "Remote policy",
+  salaryFloor: "Salary floor",
+  seniority: "Seniority",
+  industriesInclude: "Industries to include",
+  industriesExclude: "Industries to exclude",
+  companyExclude: "Companies to exclude",
+  workAuthorization: "Work authorization",
+  requiresSponsorship: "Sponsorship required",
+  dailyApplyCap: "Daily apply cap",
+};
+
 /** Pre-check boards that are confirmed and have matching jobs, plus job-board searches (not LinkedIn/Indeed). */
 function defaultChecked(x: SuggestionView): boolean {
   if (x.type === "adzuna") return true;
   if (x.type === "linkedin" || x.type === "indeed") return false;
   return x.status === "verified" && (x.jobsMatching ?? 0) > 0;
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
 
 export function ReviewForm({
@@ -55,6 +74,7 @@ export function ReviewForm({
   const [answers, setAnswers] = useState(initialDraft.screeningAnswers);
   const [additions, setAdditions] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const [confirmUnevidenced, setConfirmUnevidenced] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [applying, startApply] = useTransition();
   const [finding, startFind] = useTransition();
@@ -66,13 +86,52 @@ export function ReviewForm({
   const selectedIds = suggestions.filter(checked).map((x) => x.id);
   const uncovered = Object.entries(initialDraft.coverage).filter(([, v]) => v === "open").length;
 
+  const prefEvidence = initialDraft.preferenceEvidence ?? {};
+  const draftHints = initialDraft.companyHints ?? { pursue: [], avoid: [], industries: [], stageOrSize: [] };
+  const hintEvidence = initialDraft.hintEvidence ?? [];
+  const allHints = [...draftHints.pursue, ...draftHints.avoid, ...draftHints.industries, ...draftHints.stageOrSize];
+
+  /** Preference fields that differ from saved values and lack transcript evidence (D-03). */
+  const unevidencedPrefs = useMemo(() => {
+    const draftPrefs = (initialDraft.preferences ?? {}) as Record<string, unknown>;
+    const keys = new Set([...Object.keys(draftPrefs), ...Object.keys(prefs as Record<string, unknown>)]);
+    return [...keys].filter((k) => {
+      if (k === "dryRun") return true; // surface but never persist from interview
+      const current = (prefs as Record<string, unknown>)[k];
+      const saved = (savedPreferences as Record<string, unknown>)[k];
+      if (sameValue(current, saved)) return false;
+      // Changed from saved: needs evidence for the draft value, or confirm if the user edited it.
+      return !prefEvidence[k];
+    });
+  }, [prefs, initialDraft.preferences, savedPreferences, prefEvidence]);
+
+  /** Company hints the model recorded without candidate words (D-03). */
+  const unevidencedHints = useMemo(() => {
+    return allHints.filter((h) => {
+      const n = h.trim();
+      if (!n) return false;
+      if (hintEvidence.some((q) => q.toLowerCase().includes(n.toLowerCase()))) return false;
+      return true;
+    });
+  }, [initialDraft.companyHints, hintEvidence]);
+
+  const needsConfirm = unevidencedPrefs.filter((k) => k !== "dryRun").length > 0 || unevidencedHints.length > 0;
+
   const toggle = (id: string, value: boolean) => setOverrides((o) => ({ ...o, [id]: value }));
 
   function apply() {
     setResult(null);
     const draft: InterviewDraft = { ...initialDraft, preferences: prefs, screeningAnswers: answers.filter((a) => a.answer.trim()) };
+    // D-03: explicit review confirm only when the user checks the box. dryRun is never confirmed into false via interview.
+    const confirmations = confirmUnevidenced
+      ? {
+          preferenceFields: unevidencedPrefs.filter((k) => k !== "dryRun"),
+          companyHints: unevidencedHints,
+          screeningKeys: answers.map((a) => a.questionKey),
+        }
+      : { preferenceFields: [], companyHints: [], screeningKeys: [] };
     startApply(async () => {
-      const r = await applyInterviewAction(interviewId, draft, [...additions], selectedIds);
+      const r = await applyInterviewAction(interviewId, draft, [...additions], selectedIds, confirmations);
       if (!r.ok) setResult({ ok: false, text: r.error });
       else {
         setResult({ ok: true, text: r.message ?? "Applied" });
@@ -112,6 +171,55 @@ export function ReviewForm({
       {uncovered ? <Notice tone="warn">{uncovered} topic{uncovered === 1 ? " wasn't" : "s weren't"} covered in the interview. Check the fields below before applying.</Notice> : null}
 
       <PreferencesFields value={prefs} onChange={setPrefs} />
+
+      {(unevidencedPrefs.length > 0 || unevidencedHints.length > 0) && (
+        <Notice tone="warn" title="Confirm settings that weren't in your interview answers">
+          <div className="flex flex-col gap-2">
+            <p>These values came from the resume draft or model inference, not from words you said in the interview. They will not be saved unless you confirm them.</p>
+            {unevidencedPrefs.length > 0 ? (
+              <div>
+                <p className="text-[12px] font-medium uppercase tracking-wide">Settings</p>
+                <ul className="list-disc pl-5">
+                  {unevidencedPrefs.map((k) => (
+                    <li key={k}>
+                      {PREF_LABEL[k] ?? k}
+                      {k === "dryRun" ? " (real-submit is never enabled from the interview)" : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {unevidencedHints.length > 0 ? (
+              <div>
+                <p className="text-[12px] font-medium uppercase tracking-wide">Company hints</p>
+                <ul className="list-disc pl-5">
+                  {unevidencedHints.map((h) => (
+                    <li key={h}>{h}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <Checkbox
+              label="I confirm these settings and want them saved when I apply"
+              hint="Leave unchecked to save only settings that match your interview answers."
+              checked={confirmUnevidenced}
+              onChange={(e) => setConfirmUnevidenced(e.target.checked)}
+            />
+          </div>
+        </Notice>
+      )}
+
+      {allHints.length > 0 && (
+        <Card>
+          <CardHeader title="Company hints from the interview" description="Employers and filters the interviewer recorded. Unevidenced items need the confirmation above to persist." />
+          <CardBody className="flex flex-col gap-2 text-[13px]">
+            {draftHints.pursue.length ? <p><span className="text-muted">Pursue:</span> {draftHints.pursue.join(", ")}</p> : null}
+            {draftHints.avoid.length ? <p><span className="text-muted">Avoid:</span> {draftHints.avoid.join(", ")}</p> : null}
+            {draftHints.industries.length ? <p><span className="text-muted">Industries:</span> {draftHints.industries.join(", ")}</p> : null}
+            {draftHints.stageOrSize.length ? <p><span className="text-muted">Stage/size:</span> {draftHints.stageOrSize.join(", ")}</p> : null}
+          </CardBody>
+        </Card>
+      )}
 
       <Card>
         <CardHeader title="Screening answers" description="Reused whenever an application asks the same question. Taken from what you said in the interview." />
@@ -212,7 +320,12 @@ export function ReviewForm({
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-panel/95 backdrop-blur md:left-56">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-3 px-4 py-3 md:px-8">
-          <Button variant="primary" size="lg" disabled={applying} onClick={apply}>
+          <Button
+            variant="primary"
+            size="lg"
+            disabled={applying}
+            onClick={apply}
+          >
             {applying ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
             Apply
           </Button>
@@ -220,6 +333,7 @@ export function ReviewForm({
             Saves preferences{answers.length ? `, ${answers.length} answer${answers.length === 1 ? "" : "s"}` : ""}
             {additions.size ? `, ${additions.size} profile addition${additions.size === 1 ? "" : "s"}` : ""}
             {selectedIds.length ? `, and adds ${selectedIds.length} source${selectedIds.length === 1 ? "" : "s"}` : ""}.
+            {needsConfirm && !confirmUnevidenced ? " Unevidenced settings will be skipped unless you confirm them above." : ""}
           </span>
           {result ? <span className={cn("text-[13px]", result.ok ? "text-ok" : "text-bad")} role={result.ok ? "status" : "alert"}>{result.text}</span> : null}
         </div>

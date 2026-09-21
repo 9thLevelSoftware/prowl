@@ -57,9 +57,13 @@ export const CompanyHintsSchema = z.object({
 
 export const InterviewDraft = z.object({
   preferences: Preferences.partial().default({}),
+  /** field name → candidate quote that passed hasEvidence at merge (D-03). */
+  preferenceEvidence: z.record(z.string(), z.string()).default({}),
   screeningAnswers: z.array(ScreeningAnswer).default([]),
   profileAdditions: z.array(ProfileAddition).default([]),
   companyHints: CompanyHintsSchema.default({ pursue: [], avoid: [], industries: [], stageOrSize: [] }),
+  /** Candidate quotes supporting companyHints that passed hasEvidence at merge (D-03). */
+  hintEvidence: z.array(z.string()).default([]),
   dealbreakers: z.array(z.string()).default([]),
   startDate: z.string().default(""),
   coverage: z.record(z.string(), z.enum(["open", "covered", "skipped"])).default({}),
@@ -67,6 +71,7 @@ export const InterviewDraft = z.object({
 export type InterviewDraft = z.infer<typeof InterviewDraft>;
 export type ScreeningAnswer = z.infer<typeof ScreeningAnswer>;
 export type ProfileAddition = z.infer<typeof ProfileAddition>;
+export type CompanyHints = z.infer<typeof CompanyHintsSchema>;
 
 export function emptyDraft(): InterviewDraft {
   return InterviewDraft.parse({ coverage: Object.fromEntries(TOPIC_KEYS.map((k) => [k, "open"])) });
@@ -90,12 +95,22 @@ const PrefPatchOut = z.object({
   dryRun: z.boolean().nullable().default(null),
 });
 
+/** Per-field candidate quotes for preference patches. Fields without a quote are inference-only (D-03). */
+const PreferenceEvidenceOut = z
+  .record(z.string(), z.string())
+  .default({})
+  .describe("Map of preference field name (e.g. targetTitles) to the candidate's exact words supporting that field. Leave out inference-only fields.");
+
 // Hint lists are low stakes, so a list the model leaves out becomes empty instead of failing the turn.
 const HintsOut = z.object({
   pursue: z.array(z.string()).default([]),
   avoid: z.array(z.string()).default([]),
   industries: z.array(z.string()).default([]),
   stageOrSize: z.array(z.string()).default([]),
+  evidence: z
+    .array(z.string())
+    .default([])
+    .describe("The candidate's exact words supporting these hints (e.g. 'Please avoid Paylane'). Leave empty when these are inference-only."),
 });
 
 const AskOut = {
@@ -107,11 +122,13 @@ const AskOut = {
 const AnalyzeOut = z.object({
   careerSummary: z.string().describe("2-3 sentences on the candidate's career arc, seniority, and domain, grounded in the facts"),
   preferences: PrefPatchOut.describe("Reasonable starting guesses inferred from the resume, to be confirmed in the interview"),
+  preferenceEvidence: PreferenceEvidenceOut,
   ...AskOut,
 });
 
 const TurnOut = z.object({
   preferences: PrefPatchOut,
+  preferenceEvidence: PreferenceEvidenceOut,
   screeningAnswers: z.array(ScreeningAnswer).default([]).describe("Only answers the candidate stated. evidence = their exact words."),
   profileAdditions: z
     .array(z.object({ kind: ProfileAddition.shape.kind, text: z.string(), workId: z.string().nullable(), evidence: z.string() }))
@@ -130,6 +147,7 @@ const TurnOut = z.object({
 
 const SummaryOut = z.object({
   preferences: PrefPatchOut,
+  preferenceEvidence: PreferenceEvidenceOut,
   keywords: z.array(z.string()).default([]).describe("0-6 distinctive words or short phrases that identify relevant job titles on their own, e.g. 'product management', 'payments product'. Never a bare level or role word such as 'head', 'vp', 'senior', or 'manager'."),
   screeningAnswers: z.array(ScreeningAnswer).default([]),
   companyHints: HintsOut,
@@ -210,15 +228,132 @@ export function applyPreferencePatch(current: InterviewDraft["preferences"], pat
   return next as InterviewDraft["preferences"];
 }
 
+/** True when a hint string appears in any of the given quotes (case and punctuation ignored). */
+export function hintInQuotes(hint: string, quotes: string[]): boolean {
+  const h = normalizeText(hint);
+  return h.length >= 2 && quotes.some((q) => normalizeText(q).includes(h));
+}
+
+/**
+ * Preference fields allowed to persist on Apply (D-03): transcript evidence OR explicit review confirm.
+ * `dryRun` is never allowed from the interview path (SEC-06) — submit-for-real is a separate action.
+ */
+export function allowedPreferenceFields(
+  draft: InterviewDraft,
+  messages: InterviewMessage[],
+  confirmed: ReadonlySet<string> = new Set(),
+): { allowed: Set<string>; dropped: string[] } {
+  const allowed = new Set<string>();
+  const dropped: string[] = [];
+  const evidence = draft.preferenceEvidence ?? {};
+  const prefs = (draft.preferences ?? {}) as Record<string, unknown>;
+  for (const key of Object.keys(prefs)) {
+    const value = prefs[key];
+    if (value === undefined || value === null) continue;
+    // SEC-06 / D-03: interview Apply never writes dryRun; real-submit is submitForRealAction / approveApplication.
+    if (key === "dryRun") {
+      dropped.push(key);
+      continue;
+    }
+    const quote = evidence[key];
+    if ((quote && hasEvidence(quote, messages)) || confirmed.has(key)) allowed.add(key);
+    else dropped.push(key);
+  }
+  return { allowed, dropped };
+}
+
+/** Company-hint strings allowed to persist (D-03): transcript evidence OR explicit review confirm. */
+export function allowedCompanyHints(
+  draft: InterviewDraft,
+  messages: InterviewMessage[],
+  confirmed: ReadonlySet<string> = new Set(),
+): { allowed: CompanyHints; dropped: string[] } {
+  const quotes = (draft.hintEvidence ?? []).filter((q) => hasEvidence(q, messages));
+  const isEvidenced = (h: string) => hintInQuotes(h, quotes) || hasEvidence(h, messages);
+  const filter = (list: string[]) => {
+    const allowed: string[] = [];
+    const dropped: string[] = [];
+    for (const raw of list) {
+      const h = raw.trim();
+      if (!h) continue;
+      if (isEvidenced(h) || confirmed.has(h)) allowed.push(h);
+      else dropped.push(h);
+    }
+    return { allowed, dropped };
+  };
+  const p = filter(draft.companyHints?.pursue ?? []);
+  const a = filter(draft.companyHints?.avoid ?? []);
+  const i = filter(draft.companyHints?.industries ?? []);
+  const s = filter(draft.companyHints?.stageOrSize ?? []);
+  return {
+    allowed: { pursue: p.allowed, avoid: a.allowed, industries: i.allowed, stageOrSize: s.allowed },
+    dropped: [...p.dropped, ...a.dropped, ...i.dropped, ...s.dropped],
+  };
+}
+
+/**
+ * Screening answers allowed to persist (D-03 / CODE2-04): re-check evidence against the transcript
+ * OR accept an explicit review confirmation. Client-shaped InterviewDraft alone is not sufficient.
+ */
+export function allowedScreeningAnswers(
+  draft: InterviewDraft,
+  messages: InterviewMessage[],
+  confirmed: ReadonlySet<string> = new Set(),
+): { allowed: ScreeningAnswer[]; dropped: string[] } {
+  const allowed: ScreeningAnswer[] = [];
+  const dropped: string[] = [];
+  for (const a of draft.screeningAnswers ?? []) {
+    if (!a.answer?.trim()) continue;
+    if (hasEvidence(a.evidence, messages) || confirmed.has(a.questionKey)) allowed.push(a);
+    else dropped.push(a.questionKey);
+  }
+  return { allowed, dropped };
+}
+
+/** Dealbreaker strings allowed to persist (D-03). */
+export function allowedDealbreakers(
+  draft: InterviewDraft,
+  messages: InterviewMessage[],
+  confirmed: ReadonlySet<string> = new Set(),
+): { allowed: string[]; dropped: string[] } {
+  const allowed: string[] = [];
+  const dropped: string[] = [];
+  for (const raw of draft.dealbreakers ?? []) {
+    const d = raw.trim();
+    if (!d) continue;
+    if (hasEvidence(d, messages) || confirmed.has(d)) allowed.push(d);
+    else dropped.push(d);
+  }
+  return { allowed, dropped };
+}
+
 export interface TurnApplyResult {
   draft: InterviewDraft;
   rejected: string[];
 }
 
+function recordPreferenceEvidence(target: InterviewDraft, quotes: Record<string, string> | undefined, messages: InterviewMessage[]): void {
+  if (!quotes) return;
+  for (const [field, quote] of Object.entries(quotes)) {
+    if (field === "dryRun") continue;
+    if (quote && hasEvidence(quote, messages)) target.preferenceEvidence = { ...target.preferenceEvidence, [field]: quote };
+  }
+}
+
+function recordHintEvidence(target: InterviewDraft, quotes: string[] | undefined, messages: InterviewMessage[]): void {
+  if (!quotes?.length) return;
+  const evidenced = quotes.filter((q) => hasEvidence(q, messages));
+  if (evidenced.length) target.hintEvidence = dedupe([...(target.hintEvidence ?? []), ...evidenced]);
+}
+
 export function mergeTurn(draft: InterviewDraft, out: z.infer<typeof TurnOut>, messages: InterviewMessage[], profile: ProfileData): TurnApplyResult {
   const rejected: string[] = [];
   const next: InterviewDraft = structuredClone(draft);
+  next.preferenceEvidence = { ...(draft.preferenceEvidence ?? {}) };
+  next.hintEvidence = [...(draft.hintEvidence ?? [])];
+  // Draft keeps model values for review visibility; Apply persists only evidenced or confirmed fields (D-03).
   next.preferences = applyPreferencePatch(next.preferences, out.preferences);
+  recordPreferenceEvidence(next, out.preferenceEvidence, messages);
 
   for (const a of out.screeningAnswers) {
     if (!a.answer.trim() || !hasEvidence(a.evidence, messages)) {
@@ -247,6 +382,7 @@ export function mergeTurn(draft: InterviewDraft, out: z.infer<typeof TurnOut>, m
     industries: dedupe([...next.companyHints.industries, ...out.companyHints.industries]),
     stageOrSize: dedupe([...next.companyHints.stageOrSize, ...out.companyHints.stageOrSize]),
   };
+  recordHintEvidence(next, out.companyHints.evidence, messages);
   next.dealbreakers = dedupe([...next.dealbreakers, ...out.dealbreakers]);
   if (out.startDate) next.startDate = out.startDate;
   const latest = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
@@ -280,9 +416,12 @@ How to interview:
 
 Recording rules:
 - preferences: set only fields the candidate confirmed or clearly stated in this conversation; null means no change.
+  preferenceEvidence: map each preference field you set to the candidate's exact words. Leave a field out of preferenceEvidence when it is only a resume-inference guess.
+- Never set dryRun to false. Leave dryRun null; real-submit intent is handled outside this interview.
 - screeningAnswers: map to the known question keys when the meaning matches. evidence MUST be the candidate's own words copied exactly.
 - profileAdditions: only real skills, accomplishments, or certifications the candidate said they have that are NOT already in the facts. evidence MUST be their exact words. workId is the id of the related role, or null.
 - coverage: list only topics the latest answer covered, or skipped when the candidate explicitly declined. Leave out topics you haven't asked about.
+- companyHints.evidence: the candidate's exact words supporting these hints; leave empty when inference-only.
 - companyHints.avoid: specific employer names only. A category such as "crypto companies" belongs in preferences.industriesExclude as the industry name.
 - done: true when all required topics are covered and you have nothing important left to ask.`;
 
@@ -327,7 +466,7 @@ export async function startInterview(db: Db, llm: LlmLike, userId = LOCAL_USER_I
 
   const out = await llm.object({ task: "interview_analyze", tier: "smart", maxOutputTokens: 6000 }, AnalyzeOut, {
     system: INTERVIEWER,
-    prompt: `CANDIDATE FACTS (${years} years of experience):\n${factsToPrompt(facts)}\n\nCURRENT SAVED PREFERENCES (may be defaults):\n${JSON.stringify({ targetTitles: prefs.targetTitles, locations: prefs.locations, remotePolicy: prefs.remotePolicy, salaryFloor: prefs.salaryFloor })}\n\nStart the interview. Summarize their career in careerSummary, pre-fill likely preferences from the resume, and open with a short friendly message that shows you read their resume and asks your first question about target roles.`,
+    prompt: `CANDIDATE FACTS (${years} years of experience):\n${factsToPrompt(facts)}\n\nCURRENT SAVED PREFERENCES (may be defaults):\n${JSON.stringify({ targetTitles: prefs.targetTitles, locations: prefs.locations, remotePolicy: prefs.remotePolicy, salaryFloor: prefs.salaryFloor })}\n\nStart the interview. Summarize their career in careerSummary, pre-fill likely preferences from the resume (leave preferenceEvidence empty — these are resume inferences, not candidate words), and open with a short friendly message that shows you read their resume and asks your first question about target roles.`,
   });
 
   const draft = emptyDraft();
@@ -384,12 +523,18 @@ export async function finishInterview(db: Db, llm: LlmLike, interviewId: string)
 - Locations as "City, State" or "Country"; salaryFloor as an annual number.
 - companyExclude and companyHints.avoid hold specific employer names only. Put categories the candidate wants to avoid (for example "crypto companies") in industriesExclude as the industry name ("Crypto").
 - Keep only screening answers the candidate actually gave; copy their evidence exactly. Map them to the known question keys when the meaning matches.
+- preferenceEvidence: map each preference field you set (including keywords) to the candidate's exact words. Leave out inference-only fields.
+- companyHints.evidence: the candidate's exact words supporting these hints; empty when not stated.
+- Never set dryRun to false.
 - Do not add anything the candidate did not say. null means keep the current value.`,
     prompt: `KNOWN SCREENING QUESTION KEYS:\n${knownQuestions()}\n\nRECORDED SO FAR:\n${draftView(draft)}\nSCREENING ANSWERS WITH EVIDENCE:\n${JSON.stringify(draft.screeningAnswers)}\n\nFULL CONVERSATION:\n${transcript(iv.messages, 200)}`,
   });
 
   const next = structuredClone(draft);
+  next.preferenceEvidence = { ...(draft.preferenceEvidence ?? {}) };
+  next.hintEvidence = [...(draft.hintEvidence ?? [])];
   next.preferences = applyPreferencePatch(next.preferences, out.preferences);
+  recordPreferenceEvidence(next, out.preferenceEvidence, iv.messages);
   // A keyword matches a title on its own, so drop ones too broad to filter anything ("head", "vp").
   const keywords = out.keywords.filter((k) => usableKeywords([k]).length > 0);
   if (keywords.length) next.preferences.keywords = dedupe(keywords).slice(0, 8);
@@ -405,6 +550,7 @@ export async function finishInterview(db: Db, llm: LlmLike, interviewId: string)
     industries: dedupe([...draft.companyHints.industries, ...out.companyHints.industries]),
     stageOrSize: dedupe([...draft.companyHints.stageOrSize, ...out.companyHints.stageOrSize]),
   };
+  recordHintEvidence(next, out.companyHints.evidence, iv.messages);
   return updateInterview(db, iv.id, { draft: next, status: "review" });
 }
 

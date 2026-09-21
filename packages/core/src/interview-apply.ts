@@ -10,10 +10,27 @@ import {
   updateInterview,
   type Db,
 } from "@prowl/db";
-import { LOCAL_USER_ID, type ProfileData } from "@prowl/shared";
+import { LOCAL_USER_ID, type Preferences, type ProfileData } from "@prowl/shared";
 import { renderResumeFiles, resolveBaseline } from "@prowl/documents";
 import { buildFacts, normalizeProfile } from "./profile";
-import { InterviewDraft, InterviewError, type ProfileAddition } from "./interview";
+import {
+  InterviewDraft,
+  InterviewError,
+  allowedCompanyHints,
+  allowedDealbreakers,
+  allowedPreferenceFields,
+  allowedScreeningAnswers,
+  type CompanyHints,
+  type ProfileAddition,
+} from "./interview";
+
+/** Server-visible explicit review confirmations (D-03). Set only when the user confirms unevidenced fields on review. */
+export interface ApplyConfirmations {
+  preferenceFields?: string[];
+  companyHints?: string[];
+  screeningKeys?: string[];
+  dealbreakers?: string[];
+}
 
 export interface ApplySelection {
   draft: InterviewDraft;
@@ -21,6 +38,8 @@ export interface ApplySelection {
   additionIds: string[];
   /** Source suggestion ids the user checked. */
   suggestionIds: string[];
+  /** Explicit review-screen confirmations for items that lack transcript evidence (D-03). */
+  confirmations?: ApplyConfirmations;
 }
 
 export interface ApplyResult {
@@ -28,6 +47,13 @@ export interface ApplyResult {
   answersSaved: number;
   profileVersion: number | null;
   sourcesAdded: number;
+  /** Items dropped because they lacked transcript evidence and were not explicitly confirmed (D-03). */
+  dropped: {
+    preferenceFields: string[];
+    companyHints: string[];
+    screeningKeys: string[];
+    dealbreakers: string[];
+  };
 }
 
 /** Add one suggestion as a job source and queue its first discovery run. Returns false if already added. */
@@ -70,22 +96,57 @@ export function applyAdditions(profile: ProfileData, additions: ProfileAddition[
 /**
  * Apply an approved interview: preferences, screening answers, confirmed profile additions,
  * and chosen sources. Nothing here runs until the user presses Apply on the review screen.
+ *
+ * D-03: preference fields, companyHints, dealbreakers, and screening answers persist only when
+ * the interview transcript has candidate evidence OR the review screen recorded an explicit
+ * confirmation. SEC-06: this path never writes preferences.dryRun = false.
  */
 export async function applyInterview(db: Db, interviewId: string, selection: ApplySelection, userId = LOCAL_USER_ID): Promise<ApplyResult> {
   const iv = getInterview(db, interviewId);
   if (!iv) throw new InterviewError("Interview not found");
   if (iv.status === "applied") throw new InterviewError("This interview was already applied");
   const draft = InterviewDraft.parse(selection.draft);
-  const result: ApplyResult = { preferencesSaved: false, answersSaved: 0, profileVersion: null, sourcesAdded: 0 };
+  const messages = iv.messages;
+  const confirmations: ApplyConfirmations = selection.confirmations ?? {};
+  const confPrefs = new Set(confirmations.preferenceFields ?? []);
+  const confHints = new Set(confirmations.companyHints ?? []);
+  const confScreen = new Set(confirmations.screeningKeys ?? []);
+  const confDeals = new Set(confirmations.dealbreakers ?? []);
+
+  const { allowed: allowedPrefKeys, dropped: droppedPrefFields } = allowedPreferenceFields(draft, messages, confPrefs);
+  const { allowed: allowedHints, dropped: droppedHints } = allowedCompanyHints(draft, messages, confHints);
+  const { allowed: allowedAnswers, dropped: droppedScreenKeys } = allowedScreeningAnswers(draft, messages, confScreen);
+  const { allowed: allowedDeals, dropped: droppedDeals } = allowedDealbreakers(draft, messages, confDeals);
+
+  const draftPrefs = (draft.preferences ?? {}) as Record<string, unknown>;
+  const prefPatch: Partial<Preferences> = {};
+  for (const key of allowedPrefKeys) {
+    const v = draftPrefs[key];
+    if (v === undefined || v === null) continue;
+    (prefPatch as Record<string, unknown>)[key] = v;
+  }
+  // companyExclude merges the evidenced/confirmed draft exclude list with allowed avoid hints.
+  const draftExclude = allowedPrefKeys.has("companyExclude") ? (draft.preferences.companyExclude ?? []) : [];
+  const avoidFromHints = allowedHints.avoid;
+  if (allowedPrefKeys.has("companyExclude") || avoidFromHints.length) {
+    prefPatch.companyExclude = [...new Set([...draftExclude, ...avoidFromHints].map((a) => a.trim()).filter(Boolean))];
+  }
+  // SEC-06 / D-03: interview Apply never writes dryRun. Real submit is submitForRealAction / approveApplication.
+  delete (prefPatch as Record<string, unknown>).dryRun;
+
+  const result: ApplyResult = {
+    preferencesSaved: false,
+    answersSaved: 0,
+    profileVersion: null,
+    sourcesAdded: 0,
+    dropped: { preferenceFields: droppedPrefFields, companyHints: droppedHints, screeningKeys: droppedScreenKeys, dealbreakers: droppedDeals },
+  };
 
   db.transaction((tx) => {
-    const current = getPreferences(tx as unknown as Db, userId);
-    const avoid = [...(draft.preferences.companyExclude ?? current.companyExclude), ...draft.companyHints.avoid];
-    savePreferences(tx as unknown as Db, { ...draft.preferences, companyExclude: [...new Set(avoid.map((a) => a.trim()).filter(Boolean))] }, userId);
+    savePreferences(tx as unknown as Db, prefPatch, userId);
     result.preferencesSaved = true;
 
-    for (const a of draft.screeningAnswers) {
-      if (!a.answer.trim()) continue;
+    for (const a of allowedAnswers) {
       tx.insert(s.qaBank)
         .values({ userId, questionKey: a.questionKey, questionText: a.questionText, answer: a.answer.trim(), approved: true })
         .onConflictDoUpdate({ target: [s.qaBank.userId, s.qaBank.questionKey], set: { answer: a.answer.trim(), questionText: a.questionText, approved: true } })
@@ -115,6 +176,14 @@ export async function applyInterview(db: Db, interviewId: string, selection: App
   const jobs = db.select({ id: s.jobs.id }).from(s.jobs).where(eq(s.jobs.userId, userId)).all();
   for (const j of jobs) enqueue(db, "process_job", { jobId: j.id }, { dedupKey: `process:${j.id}`, priority: 110, userId });
 
-  updateInterview(db, interviewId, { status: "applied", draft });
+  // Persist a draft that matches what was actually allowed (D-03) so applied state is honest.
+  const persistHints: CompanyHints = allowedHints;
+  const persistDraft: InterviewDraft = {
+    ...draft,
+    companyHints: persistHints,
+    screeningAnswers: allowedAnswers,
+    dealbreakers: allowedDeals,
+  };
+  updateInterview(db, interviewId, { status: "applied", draft: persistDraft });
   return result;
 }
