@@ -21,6 +21,7 @@ import { getLlm } from "@prowl/llm";
 import { LOCAL_USER_ID, WORKER_PORT, dataDir, logger, sleep } from "@prowl/shared";
 import { closeContext, openForLogin } from "@prowl/browser";
 import { closeRenderer } from "@prowl/documents";
+import { checkControlPost, controlCorsOrigin, resolveLoginSites } from "./control";
 import { emit, subscribe } from "./events";
 import { handleBuildSources } from "./sources-task";
 import { RescheduleError, handleApply, handleDiscoverAll, handleDiscoverSource, handleProcessJob, handleTailor } from "./handlers";
@@ -37,9 +38,12 @@ let stopping = false;
 const running = new Map<string, string>();
 
 /*
- * Two lanes so a long browser session never blocks tailoring:
- *  - browser lane (1 at a time): applications and LinkedIn/Indeed discovery
- *  - llm lane (2 at a time): everything else
+ * Two lanes so a long browser session never blocks tailoring (executable authority:
+ * these arrays — docs must not invent membership):
+ *  - browser lane (1 at a time): applications only (BROWSER_TYPES)
+ *  - llm lane (2 at a time): discovery/match/tailor/sources (LLM_TYPES)
+ * LinkedIn/Indeed discovery is discover_source on the LLM lane; it shares the Chrome
+ * profile with apply only via withBrowserLock inside those adapters — not via BROWSER_TYPES.
  */
 const BROWSER_TYPES = ["apply"];
 const LLM_TYPES = ["discover_all", "discover_source", "process_job", "tailor", "build_sources"];
@@ -79,7 +83,7 @@ async function lane(name: string, types: string[], concurrency: number): Promise
       running.set(task.id, `${task.type}`);
       const started = Date.now();
       try {
-        // LinkedIn/Indeed discovery runs in this lane but serializes with applications on the shared browser lock.
+        // discover_source (LI/Indeed) runs on the LLM lane; adapters serialize with apply via withBrowserLock.
         llm.reload();
         await execute(task);
         completeTask(db, task.id);
@@ -122,18 +126,34 @@ function scheduleDiscovery(): void {
 
 /* ============================ Control server =========================== */
 
-function json(res: http.ServerResponse, code: number, body: unknown) {
-  res.writeHead(code, { "content-type": "application/json", "access-control-allow-origin": "http://localhost:3000" }).end(JSON.stringify(body));
+function headerValue(v: string | string[] | undefined): string | undefined {
+  return Array.isArray(v) ? v[0] : v;
+}
+
+function json(res: http.ServerResponse, code: number, body: unknown, origin?: string) {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const acao = controlCorsOrigin(origin);
+  if (acao) headers["access-control-allow-origin"] = acao;
+  res.writeHead(code, headers).end(JSON.stringify(body));
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
+  const origin = headerValue(req.headers.origin);
   try {
     if (req.method === "GET" && url.pathname === "/health") {
-      return json(res, 200, { ok: true, workerId: WORKER_ID, startedAt: STARTED, dataDir: dataDir(), running: [...running.values()], queue: queueStats(db), provider: llm.config.provider, models: { main: llm.config.smartModel, mainEffort: llm.config.smartEffort, fast: llm.config.fastModel, fastEffort: llm.config.fastEffort } });
+      return json(res, 200, { ok: true, workerId: WORKER_ID, startedAt: STARTED, dataDir: dataDir(), running: [...running.values()], queue: queueStats(db), provider: llm.config.provider, models: { main: llm.config.smartModel, mainEffort: llm.config.smartEffort, fast: llm.config.fastModel, fastEffort: llm.config.fastEffort } }, origin);
     }
     if (req.method === "GET" && url.pathname === "/events") {
-      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive", "access-control-allow-origin": "*" });
+      // Tight CORS: known web origins only — never `*`.
+      const acao = controlCorsOrigin(origin);
+      const headers: Record<string, string> = {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      };
+      if (acao) headers["access-control-allow-origin"] = acao;
+      res.writeHead(200, headers);
       res.write(": connected\n\n");
       const unsub = subscribe((e) => res.write(`data: ${JSON.stringify(e)}\n\n`));
       const ping = setInterval(() => res.write(": ping\n\n"), 20_000);
@@ -143,27 +163,33 @@ const server = http.createServer(async (req, res) => {
       });
       return;
     }
-    if (req.method === "POST" && url.pathname === "/browser/login") {
-      const sites = (url.searchParams.get("sites") ?? "linkedin,indeed").split(",");
-      const urls = sites.map((x) => ({ linkedin: "https://www.linkedin.com/login", indeed: "https://secure.indeed.com/auth", workday: "https://www.myworkday.com", google: "https://accounts.google.com" })[x] ?? x);
-      await openForLogin(urls);
-      return json(res, 200, { ok: true, opened: urls });
+    if (req.method === "POST") {
+      const gate = checkControlPost({ origin, host: req.headers.host });
+      if (!gate.ok) return json(res, 403, { error: gate.error }, origin);
+
+      if (url.pathname === "/browser/login") {
+        const resolved = resolveLoginSites(url.searchParams.get("sites"));
+        if (!resolved.ok) return json(res, 400, { error: resolved.error }, origin);
+        // openForLogin itself takes withBrowserLock (same lock as apply/discovery).
+        await openForLogin(resolved.urls);
+        return json(res, 200, { ok: true, opened: resolved.keys }, origin);
+      }
+      if (url.pathname === "/browser/close") {
+        await closeContext();
+        return json(res, 200, { ok: true }, origin);
+      }
+      if (url.pathname === "/llm/ping") {
+        llm.reload();
+        return json(res, 200, await llm.ping(), origin);
+      }
+      if (url.pathname === "/schedule/reload") {
+        scheduleDiscovery();
+        return json(res, 200, { ok: true }, origin);
+      }
     }
-    if (req.method === "POST" && url.pathname === "/browser/close") {
-      await closeContext();
-      return json(res, 200, { ok: true });
-    }
-    if (req.method === "POST" && url.pathname === "/llm/ping") {
-      llm.reload();
-      return json(res, 200, await llm.ping());
-    }
-    if (req.method === "POST" && url.pathname === "/schedule/reload") {
-      scheduleDiscovery();
-      return json(res, 200, { ok: true });
-    }
-    json(res, 404, { error: "not found" });
+    json(res, 404, { error: "not found" }, origin);
   } catch (err) {
-    json(res, 500, { error: (err as Error).message });
+    json(res, 500, { error: (err as Error).message }, origin);
   }
 });
 

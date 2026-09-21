@@ -80,13 +80,19 @@ export function withBrowserLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** Open a visible window on the given sites so the user can sign in once. */
+/**
+ * Open a visible window on the given sites so the user can sign in once.
+ * Takes the same browser lock as apply/discovery so login never races the profile.
+ * Callers must not wrap this in withBrowserLock again (non-reentrant chain).
+ */
 export async function openForLogin(urls: string[]): Promise<void> {
-  const ctx = await getContext({ headless: false });
-  for (const url of urls) {
-    const page = await ctx.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded" }).catch((e) => log.warn(`could not open ${url}: ${e.message}`));
-  }
+  return withBrowserLock(async () => {
+    const ctx = await getContext({ headless: false });
+    for (const url of urls) {
+      const page = await ctx.newPage();
+      await page.goto(url, { waitUntil: "domcontentloaded" }).catch((e) => log.warn(`could not open ${url}: ${e.message}`));
+    }
+  });
 }
 
 export type { BrowserContext, Page };
