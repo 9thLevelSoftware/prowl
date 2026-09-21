@@ -6,6 +6,7 @@ import {
   type ProfileFact,
   type ProfileData as ProfileDataT,
 } from "@jh/shared";
+import { bulletDraftSystemPrompt, summaryDraftSystemPrompt } from "./resume-craft";
 
 const EXTRACT_SYSTEM = `You convert resumes into structured JSON.
 Rules:
@@ -127,10 +128,7 @@ export async function draftBulletsFromNotes(
   input: { title: string; company: string; notes: string },
 ): Promise<z.infer<typeof DraftBulletsOut>> {
   return llm.object({ task: "builder_bullets", tier: "smart" }, DraftBulletsOut, {
-    system: `You help a job seeker write resume bullets from their own notes.
-Write 2-6 concise, achievement-oriented bullets that start with a strong past-tense verb.
-Use ONLY information in the notes. Do not add metrics, percentages, team sizes, tools, technologies, or outcomes that the notes do not state.
-If a bullet would be stronger with a number the notes do not give, leave the number out and add a question asking the user for it instead.`,
+    system: bulletDraftSystemPrompt(),
     prompt: `Role: ${input.title} at ${input.company}\nNotes from the candidate:\n"""\n${input.notes}\n"""`,
   });
 }
@@ -140,8 +138,7 @@ const SummaryOut = z.object({ headline: z.string(), summary: z.string() });
 export async function draftSummary(llm: LlmClient, profile: ProfileDataT): Promise<z.infer<typeof SummaryOut>> {
   const facts = buildFacts({ ...profile, summary: "" });
   return llm.object({ task: "builder_summary", tier: "smart" }, SummaryOut, {
-    system: `Write a resume headline (under 12 words) and a 2-3 sentence professional summary.
-Use only the facts provided. Do not invent years of experience, metrics, industries, or skills. Avoid clichés like "results-driven" or "passionate".`,
+    system: summaryDraftSystemPrompt(),
     prompt: `Facts:\n${factsToPrompt(facts)}`,
   });
 }
