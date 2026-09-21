@@ -96,7 +96,7 @@ See `docs/architecture.md` for design details.
 
 ## Data
 
-All data lives in `PROWL_DATA_DIR`, `./data` by default. That includes the SQLite database (`prowl.sqlite`), generated documents, screenshots, embedding model cache, and the browser profile holding your job-site sign-ins. **Settings → Delete all data** removes everything.
+All data lives in `PROWL_DATA_DIR`, `./data` by default. That includes the SQLite database (`prowl.sqlite` + wal/shm), generated documents, screenshots, embedding model cache, browser profile holding your job-site sign-ins, and encrypted secret material (`secrets.json`, plus `secrets.key` when the OS keychain is unavailable). **Settings → Delete all data** removes those files after clearing the database. When the system keychain is available, the encryption master key lives in an OS credential entry **outside** the data dir (service `prowl`, account `master-key`) and is not deleted with local data.
 
 ## Migration from Job Hunter
 

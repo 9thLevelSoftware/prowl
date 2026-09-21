@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq, getPreferences, getProfileFacts, schema as s } from "@prowl/db";
 import { APPLIABLE_ATS } from "@prowl/shared";
+import { residualValidateErrors, validateCoverLetter, validateTailored } from "@prowl/core";
 import { Badge, Card, CardBody, CardHeader, Notice, PageHeader, StatusBadge, Table, Td, Th, buttonClass } from "@/components/ui";
 import { db, fileUrl, USER } from "@/lib/server";
 import { CoverLetterView, ResumeCompare } from "../resume-view";
@@ -33,6 +34,15 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
   const resumeFlags = tr.audit?.items.filter((i) => i.verdict !== "entailed") ?? [];
   const coverFlags = cl?.audit?.items.filter((i) => i.verdict !== "entailed") ?? [];
   const editable = app.status === "ready_for_review";
+
+  // Authoritative deterministic re-run (PR 6): errors block approve; fixed issues are cosmetic corrections.
+  const residualErrors = editable ? residualValidateErrors(profile.data, facts, tr.content, cl?.content) : [];
+  const resumeValidation = validateTailored(profile.data, facts, tr.content);
+  const coverIssues = cl ? validateCoverLetter(facts, cl.content) : [];
+  const fixedIssues = [
+    ...resumeValidation.issues.filter((i) => i.severity === "fixed").map((i) => `resume ${i.location}: ${i.message}`),
+    ...coverIssues.filter((i) => i.severity === "fixed").map((i) => `cover ${i.location}: ${i.message}`),
+  ];
 
   return (
     <>
@@ -71,10 +81,21 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
 
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="flex min-w-0 flex-col gap-5">
-          {tr.structuralErrors?.length ? (
-            <Notice tone="neutral" title="Automatic corrections and checks">
+          {residualErrors.length ? (
+            <Notice tone="bad" title="Uncleared validation errors — approval blocked">
               <ul className="list-disc pl-4">
-                {tr.structuralErrors.map((e, i) => (
+                {residualErrors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+              <p className="mt-1">Every claim must cite profile facts. Edit the resume or cover letter, or re-tailor, until these clear.</p>
+            </Notice>
+          ) : null}
+
+          {fixedIssues.length ? (
+            <Notice tone="neutral" title="Automatic corrections">
+              <ul className="list-disc pl-4">
+                {fixedIssues.map((e, i) => (
                   <li key={i}>{e}</li>
                 ))}
               </ul>
@@ -105,6 +126,7 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
               coverFlags={coverFlags.length}
               resumeStatus={tr.auditStatus}
               coverStatus={cl?.auditStatus ?? null}
+              residualErrorCount={residualErrors.length}
               dryRunDefault={prefs.dryRun}
               appliable={APPLIABLE_ATS.includes(job.atsType)}
             />

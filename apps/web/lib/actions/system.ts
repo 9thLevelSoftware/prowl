@@ -1,11 +1,11 @@
 "use server";
 
-import fs from "node:fs";
 import { revalidatePath } from "next/cache";
-import { enqueue, eq, schema as s } from "@prowl/db";
-import { SourceType, dataDir } from "@prowl/shared";
+import { enqueue, eq, schema as s, wipeLocalFiles } from "@prowl/db";
+import { SourceType } from "@prowl/shared";
+import { resetSecretsCache } from "@prowl/llm";
 import { getAdapter } from "@prowl/sources";
-import { db, USER, worker } from "../server";
+import { db, noteDbWiped, USER, worker } from "../server";
 import type { ActionResult } from "./profile";
 
 const fail = (err: unknown) => ({ ok: false as const, error: (err as Error).message ?? String(err) });
@@ -91,17 +91,20 @@ export async function deleteAllDataAction(confirmation: string): Promise<ActionR
   try {
     if (confirmation !== "DELETE") throw new Error('Type DELETE to confirm');
     await worker("/browser/close", { method: "POST" }).catch(() => undefined);
+    // Clear rows first: the worker process may still hold the SQLite files open on Windows.
     const d = db();
     d.transaction((tx) => {
       for (const t of [s.applicationEvents, s.applications, s.coverLetters, s.tailoredResumes, s.jobMatches, s.jobs, s.jobSources, s.profileFacts, s.profiles, s.preferences, s.qaBank, s.queueTasks, s.pipelineRuns, s.llmCalls, s.llmConnections, s.settings]) {
         tx.delete(t).run();
       }
     });
-    for (const dir of ["documents", "evidence", "browser-profile"]) {
-      fs.rmSync(`${dataDir()}/${dir}`, { recursive: true, force: true });
-    }
-    // Encrypted API keys and sign-in tokens.
-    fs.rmSync(`${dataDir()}/secrets.json`, { force: true });
+    // Close this process's DB handle, then unlink sqlite/wal/shm, secrets.key, secrets.json,
+    // documents, evidence, browser-profile, and the embedding-model cache (models/).
+    wipeLocalFiles();
+    // Drop the in-memory master key so the next secret write creates a fresh secrets.key.
+    resetSecretsCache();
+    // Next db() reopens + remigrates (file may have been deleted, or still exist if locked).
+    noteDbWiped();
     return done("All local data deleted");
   } catch (err) {
     return fail(err);

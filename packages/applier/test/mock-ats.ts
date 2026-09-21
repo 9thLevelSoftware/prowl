@@ -64,6 +64,30 @@ const GREENHOUSE_GAP = GREENHOUSE_LIKE.replace(
   `const missing = ["first_name","last_name","email","phone","resume","question_2","custom_required"]`,
 );
 
+const ASHBY_LIKE = `<!doctype html><html><body>
+<h1>Backend Engineer</h1>
+<form id="ashby-form">
+  <div class="field"><label for="_systemfield_name">Full Name*</label><input id="_systemfield_name" aria-required="true"></div>
+  <div class="field"><label for="_systemfield_email">Email*</label><input id="_systemfield_email" type="email" aria-required="true"></div>
+  <div class="field"><label for="_systemfield_resume">Resume/CV*</label><input id="_systemfield_resume" type="file" aria-required="true"></div>
+  <div class="field"><label for="question_location">Location</label><input id="question_location"></div>
+  <button type="submit">Submit Application</button>
+</form>
+<script>
+  document.getElementById("ashby-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = {};
+    for (const el of document.querySelectorAll("input")) {
+      if (!el.id) continue;
+      f[el.id] = el.type === "file" ? Array.from(el.files).map((x) => x.name).join(",") : el.value;
+    }
+    const missing = ["_systemfield_name","_systemfield_email","_systemfield_resume"].filter((k) => !f[k]);
+    if (missing.length) { document.body.insertAdjacentHTML("beforeend", '<div role="alert">' + missing.join(", ") + ' is required</div>'); return; }
+    await fetch("/submit/ashby", { method: "POST", body: JSON.stringify(f) });
+    location.href = "/ashby-confirmation";
+  });
+</script></body></html>`;
+
 const CAPTCHA_PAGE = `<!doctype html><html><body>
 <h1>Verify you are human</h1>
 <iframe src="https://hcaptcha.com/challenge?sitekey=demo" title="hCaptcha challenge" style="width:320px;height:220px;border:0"></iframe>
@@ -128,6 +152,8 @@ export async function startMockAts(): Promise<{ url: string; submissions: Submis
       req.url?.startsWith("/greenhouse-gap") ? GREENHOUSE_GAP
       : req.url?.startsWith("/greenhouse") ? GREENHOUSE_LIKE
       : req.url?.startsWith("/lever") ? LEVER_LIKE
+      : req.url?.startsWith("/ashby-confirmation") ? "<h1>Thank you for applying!</h1><p>Your application has been received.</p>"
+      : req.url?.startsWith("/ashby") ? ASHBY_LIKE
       : req.url?.startsWith("/captcha") ? CAPTCHA_PAGE
       : req.url?.startsWith("/confirmation") ? "<h1>Thank you for applying!</h1><p>Your application has been received.</p>"
       : req.url?.startsWith("/thanks") ? "<h1>Application submitted</h1><p>Thanks for applying.</p>"

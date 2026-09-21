@@ -40,7 +40,7 @@ export default async function SettingsPage() {
             <p>
               Everything lives on this computer in <code className="font-mono text-text">{dataDir()}</code>: the database, generated resumes and cover letters, application screenshots, and the browser profile that holds your job-site sign-ins.
             </p>
-            <p>API keys and sign-in tokens are encrypted with a key held in {storage === "keychain" ? "your system keychain" : "the data folder"}. Nothing is uploaded anywhere except the AI requests needed to analyze postings and write documents, and the applications you approve.</p>
+            <p>API keys and sign-in tokens are encrypted with a key held in {storage === "keychain" ? "your system keychain (outside the data folder — Delete all data does not remove that keychain entry)" : "the data folder"}. Nothing is uploaded anywhere except the AI requests needed to analyze postings and write documents, and the applications you approve.</p>
           </CardBody>
         </Card>
         <DangerZone />

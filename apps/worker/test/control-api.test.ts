@@ -6,8 +6,12 @@ import {
   controlCorsOrigin,
   isAllowedControlHost,
   isAllowedControlOrigin,
+  isAllowedWorkerToken,
   resolveLoginSites,
 } from "../src/control";
+
+// Token gate defaults to process.env; keep the suite deterministic.
+delete process.env.PROWL_WORKER_TOKEN;
 
 const WEB = "http://localhost:3000";
 const WORKER_HOST = "127.0.0.1:3031";
@@ -122,5 +126,35 @@ describe("CORS is never *", () => {
   it("allowed origin list does not include wildcard", () => {
     expect(CONTROL_ALLOWED_ORIGINS).not.toContain("*");
     expect([...CONTROL_ALLOWED_ORIGINS].every((o) => o.startsWith("http://127.0.0.1:3000") || o.startsWith("http://localhost:3000"))).toBe(true);
+  });
+});
+
+describe("optional PROWL_WORKER_TOKEN (PR 10)", () => {
+  const TOKEN = "bootstrap-generated-not-a-real-secret";
+
+  it("allows all loopback POSTs when the token env is unset", () => {
+    expect(isAllowedWorkerToken(undefined, undefined)).toBe(true);
+    expect(isAllowedWorkerToken(undefined, "")).toBe(true);
+    expect(isAllowedWorkerToken(undefined, "   ")).toBe(true);
+    expect(checkControlPost({ host: WORKER_HOST })).toEqual({ ok: true });
+    expect(checkControlPost({ host: WORKER_HOST, origin: WEB }, undefined, undefined)).toEqual({ ok: true });
+  });
+
+  it("rejects missing or mismatched tokens when PROWL_WORKER_TOKEN is set", () => {
+    expect(isAllowedWorkerToken(undefined, TOKEN)).toBe(false);
+    expect(isAllowedWorkerToken("", TOKEN)).toBe(false);
+    expect(isAllowedWorkerToken("wrong-token", TOKEN)).toBe(false);
+    expect(checkControlPost({ host: WORKER_HOST, origin: WEB }, undefined, TOKEN)).toEqual({ ok: false, error: "forbidden token" });
+    expect(checkControlPost({ host: WORKER_HOST, token: "nope" }, undefined, TOKEN)).toEqual({ ok: false, error: "forbidden token" });
+  });
+
+  it("accepts the matching token on a known origin/host POST", () => {
+    expect(isAllowedWorkerToken(TOKEN, TOKEN)).toBe(true);
+    expect(checkControlPost({ host: WORKER_HOST, origin: WEB, token: TOKEN }, undefined, TOKEN)).toEqual({ ok: true });
+  });
+
+  it("still enforces Origin/Host even when the token is correct", () => {
+    expect(checkControlPost({ host: "evil.test:3031", token: TOKEN }, undefined, TOKEN)).toEqual({ ok: false, error: "forbidden host" });
+    expect(checkControlPost({ host: WORKER_HOST, origin: "http://attacker.example", token: TOKEN }, undefined, TOKEN)).toEqual({ ok: false, error: "forbidden origin" });
   });
 });

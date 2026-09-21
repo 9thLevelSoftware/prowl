@@ -14,7 +14,7 @@ import {
   type QueueTask,
 } from "@prowl/db";
 import type { LlmClient } from "@prowl/llm";
-import { APPLIABLE_ATS, logger, randomBetween, type SourceType } from "@prowl/shared";
+import { APPLIABLE_ATS, canAutoSubmit, logger, randomBetween, type SourceType } from "@prowl/shared";
 import { ingestJobs, processJob, tailorApplication } from "@prowl/core";
 import { Firecrawl, getAdapter, prefilter } from "@prowl/sources";
 import { suggestLearnedBoards } from "./sources-task";
@@ -74,7 +74,9 @@ export async function handleDiscoverSource(db: Db, llm: LlmClient, task: QueueTa
         .where(and(eq(s.jobSources.userId, src.userId), eq(s.jobSources.type, d.type), sql`json_extract(${s.jobSources.config}, '$') = json(${JSON.stringify(d.config)})`))
         .get();
       if (!exists) {
-        db.insert(s.jobSources).values({ userId: src.userId, type: d.type as SourceType, name: d.name, config: d.config }).run();
+        // Unconfirmed dual contract (PR8): system-discovered boards stay disabled
+        // until the user enables them. User-explicit Add stays free enabled:true.
+        db.insert(s.jobSources).values({ userId: src.userId, type: d.type as SourceType, name: d.name, config: d.config, enabled: false }).run();
         added++;
       }
     }
@@ -162,6 +164,14 @@ export async function handleApply(db: Db, llm: LlmClient, task: QueueTask): Prom
   if (!APPLIABLE_ATS.includes(job.atsType)) {
     transitionApplication(db, app.id, "applying");
     transitionApplication(db, app.id, "needs_input", "Manual application required", { needsInputReason: `Automatic submission is not supported for ${job.atsType}.` });
+    return;
+  }
+  // Real submit must pass the shared auto-submit gate (defense in depth after approveApplication).
+  if (!app.dryRun && !canAutoSubmit({ atsType: job.atsType, dryRun: app.dryRun, auditStatus: tr?.auditStatus ?? "pending" })) {
+    transitionApplication(db, app.id, "applying");
+    transitionApplication(db, app.id, "needs_input", "Auto-submit not permitted", {
+      needsInputReason: `Automatic submission is not permitted for this application (ats=${job.atsType}, audit=${tr?.auditStatus ?? "unknown"}).`,
+    });
     return;
   }
 

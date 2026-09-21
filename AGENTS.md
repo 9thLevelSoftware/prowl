@@ -41,7 +41,8 @@ There is no CI, pre-commit hook, Prettier, or Biome config. Trust `pnpm typechec
 - **Second `pnpm dev` instance** (e.g. against demo data) needs `PROWL_NEXT_DIST_DIR` so Next does not clobber `.next`.
 - **PDF/DOCX rendering** launches Playwright Chromium (`packages/documents/src/render.ts`). Missing browser → run `pnpm --filter @prowl/documents exec playwright install chromium`.
 - **Browser profile** (`packages/browser`) is a persistent Chrome profile under the data dir. Only the worker may drive it (lock shared with apply + LinkedIn/Indeed discovery). Default channel is installed Chrome; tests force `PROWL_BROWSER_CHANNEL=chromium`.
-- **Secrets**: OS keychain service `prowl` holds a master key; AES-encrypted material is in `data/secrets.json` (Windows Credential Manager cannot hold OAuth tokens). Tests set `PROWL_SECRETS_NO_KEYCHAIN=1` and `PROWL_CATALOG_OFFLINE=1`.
+- **Secrets**: OS keychain service `prowl` holds a master key **outside the data dir** (account `master-key`); AES-encrypted material is in `data/secrets.json` (Windows Credential Manager cannot hold OAuth tokens). Settings → Delete all data wipes data-dir secrets but not the keychain entry. Tests set `PROWL_SECRETS_NO_KEYCHAIN=1` and `PROWL_CATALOG_OFFLINE=1`.
+- **Optional `PROWL_WORKER_TOKEN`**: bootstrap generates it into `.env`. When set, web sends `X-Prowl-Worker-Token` on control POSTs and the worker rejects POSTs without it (in addition to Origin/Host checks).
 
 ## Testing
 

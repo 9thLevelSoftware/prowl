@@ -43,6 +43,21 @@ export function getDb(): Db {
   return globalForDb.__prowlDb;
 }
 
+/**
+ * Close the process-wide SQLite handle so the database files can be unlinked
+ * (Settings → Delete all data). The next `getDb()` opens a fresh connection.
+ */
+export function closeDb(): void {
+  const d = globalForDb.__prowlDb;
+  if (!d) return;
+  try {
+    d.$client.close();
+  } catch {
+    /* already closed */
+  }
+  globalForDb.__prowlDb = undefined;
+}
+
 export function runMigrations(db: Db = getDb()): void {
   migrate(db, { migrationsFolder: migrationsFolder() });
   db.insert(schema.users).values({ id: LOCAL_USER_ID, displayName: "Local user" }).onConflictDoNothing().run();

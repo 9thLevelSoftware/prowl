@@ -12,6 +12,7 @@ export function ApprovePanel({
   coverFlags,
   resumeStatus,
   coverStatus,
+  residualErrorCount = 0,
   dryRunDefault,
   appliable,
 }: {
@@ -20,27 +21,35 @@ export function ApprovePanel({
   coverFlags: number;
   resumeStatus: string;
   coverStatus: string | null;
+  residualErrorCount?: number;
   dryRunDefault: boolean;
   appliable: boolean;
 }) {
   const approve = useAction();
   const other = useAction();
   const [note, setNote] = useState("");
-  const blocked = resumeStatus === "flagged" || coverStatus === "flagged";
+  const hasFlags = resumeStatus === "flagged" || coverStatus === "flagged";
+  const blocked = hasFlags || residualErrorCount > 0;
 
   return (
     <Card>
       <CardHeader title="Decision" />
       <CardBody className="flex flex-col gap-3">
-        {blocked ? (
+        {residualErrorCount > 0 ? (
+          <Notice tone="bad" title="Validation errors block approval">
+            {residualErrorCount} deterministic validation error{residualErrorCount === 1 ? "" : "s"} remain. Claims must cite profile facts — edit the content or re-tailor until they clear. Clean audits are not enough.
+          </Notice>
+        ) : null}
+        {hasFlags ? (
           <Notice tone="warn" title="Truthfulness flags need a decision">
             Edit the flagged lines, re-tailor, or confirm below that the flagged claims are accurate. Approval stays locked until then.
           </Notice>
-        ) : (
+        ) : null}
+        {!hasFlags && residualErrorCount === 0 ? (
           <Notice tone="ok" title="No unresolved flags">
             {resumeStatus === "accepted" || coverStatus === "accepted" ? "You accepted the flagged claims; that decision is in the audit trail." : "Every claim traced back to your confirmed facts."}
           </Notice>
-        )}
+        ) : null}
         {!appliable ? <Notice tone="neutral">This site doesn't support automatic submission. Approving moves it to Needs you with the files ready to upload by hand.</Notice> : null}
 
         <div className="flex flex-col gap-2">
@@ -60,7 +69,7 @@ export function ApprovePanel({
           <ResultMessage result={approve.result} />
         </div>
 
-        {blocked ? (
+        {hasFlags ? (
           <div className="border-t border-border pt-3">
             <p className="mb-1 text-[13px] font-medium">Accept flagged claims as accurate</p>
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why these are true (e.g. 'I did lead that migration; my original bullet undersold it')" />

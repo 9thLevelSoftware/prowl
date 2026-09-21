@@ -15,6 +15,7 @@ import {
 import type { LlmClient } from "@prowl/llm";
 import {
   APPLIABLE_ATS,
+  canAutoSubmit,
   canonicalUrl,
   hashString,
   logger,
@@ -24,6 +25,7 @@ import {
 import { renderCoverLetterFiles, renderResumeFiles, resolveCoverLetter, resolveTailored } from "@prowl/documents";
 import { extractRequirements } from "./requirements";
 import { scoreJob } from "./match";
+import { residualValidateErrors, toStoredStructuralIssues } from "./validate";
 import { auditClaims, coverLetterClaims, resumeClaims, tailorResume, writeCoverLetter, type JobContext } from "./tailor";
 
 const log = logger("pipeline");
@@ -193,7 +195,7 @@ export async function tailorApplication(db: Db, llm: LlmClient, applicationId: s
         semanticAfter: t.semanticAfter,
         audit,
         auditStatus: audit.overall,
-        structuralErrors: t.issues.map((i) => `${i.location}: ${i.message}`),
+        structuralErrors: toStoredStructuralIssues(t.issues),
         pdfPath: files.pdfPath,
         docxPath: files.docxPath,
         fileName: files.fileName,
@@ -217,6 +219,7 @@ export async function tailorApplication(db: Db, llm: LlmClient, applicationId: s
         content: letter,
         audit: coverAudit,
         auditStatus: coverAudit.overall,
+        structuralErrors: toStoredStructuralIssues(issues),
         pdfPath: coverFiles.pdfPath,
         fileName: coverFiles.fileName,
         model: llm.config.smartModel,
@@ -242,8 +245,9 @@ export async function tailorApplication(db: Db, llm: LlmClient, applicationId: s
 export class ReviewBlockedError extends Error {}
 
 /**
- * Approve an application for submission. Blocked while the audit has unresolved flags:
- * the user must edit the content (re-tailor) or explicitly accept each flagged claim.
+ * Approve an application for submission. Blocked while the audit has unresolved flags
+ * **or** while deterministic validate errors remain uncleared on the resume or cover letter
+ * (PR 6 / DR-3 / D-06): clean audits alone are not sufficient.
  */
 export function approveApplication(db: Db, applicationId: string, opts: { dryRun?: boolean } = {}): void {
   const app = db.select().from(s.applications).where(eq(s.applications.id, applicationId)).get();
@@ -256,15 +260,30 @@ export function approveApplication(db: Db, applicationId: string, opts: { dryRun
   if (!tr) throw new ReviewBlockedError("No tailored resume exists for this application");
   if (tr.auditStatus === "flagged") throw new ReviewBlockedError("The tailored resume has unresolved truthfulness flags");
   if (cl?.auditStatus === "flagged") throw new ReviewBlockedError("The cover letter has unresolved truthfulness flags");
+
+  // Authoritative re-run of deterministic validate (not only stored structuralErrors).
+  const profile = db.select().from(s.profiles).where(eq(s.profiles.id, tr.profileId)).get();
+  if (!profile) throw new ReviewBlockedError("Profile for this application no longer exists");
+  const facts = getProfileFacts(db, profile.id);
+  const residual = residualValidateErrors(profile.data, facts, tr.content, cl?.content);
+  if (residual.length) {
+    throw new ReviewBlockedError(`Uncleared validation errors: ${residual.join("; ")}`);
+  }
+
   const job = db.select().from(s.jobs).where(eq(s.jobs.id, app.jobId)).get();
   const prefs = getPreferences(db, app.userId);
   const dryRun = opts.dryRun ?? prefs.dryRun;
+  const auditStatus = tr.auditStatus;
   const appliable = !!job && APPLIABLE_ATS.includes(job.atsType);
+  // Dry-run fill still uses the auto-apply lane on allowlisted ATS. Real
+  // auto-submit additionally requires canAutoSubmit (dryRun false + clean audit).
+  const realAutoSubmit = canAutoSubmit({ atsType: job?.atsType, dryRun, auditStatus });
+  const useAutoLane = appliable && (dryRun || realAutoSubmit);
 
   if (app.status === "failed") transitionApplication(db, app.id, "approved", "Re-approved after failure", { dryRun, approvedAt: new Date().toISOString() });
   else transitionApplication(db, app.id, "approved", dryRun ? "Approved (dry run: will fill but not submit)" : "Approved for submission", { dryRun, approvedAt: new Date().toISOString() });
 
-  if (appliable) {
+  if (useAutoLane) {
     enqueue(db, "apply", { applicationId: app.id }, { dedupKey: `apply:${app.id}`, priority: 80, userId: app.userId, maxAttempts: 2 });
   } else {
     transitionApplication(db, app.id, "applying", "This site cannot be applied to automatically");

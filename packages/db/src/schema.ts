@@ -158,7 +158,8 @@ export const tailoredResumes = sqliteTable("tailored_resumes", {
   semanticAfter: real("semantic_after"),
   audit: text("audit", { mode: "json" }).$type<AuditReport>(),
   auditStatus: text("audit_status").$type<"pending" | "pass" | "flagged" | "accepted">().notNull().default("pending"),
-  structuralErrors: text("structural_errors", { mode: "json" }).$type<string[]>(),
+  /** Structured deterministic issues: errors vs fixed are stored separately (PR 6 / PI-07). */
+  structuralErrors: text("structural_errors", { mode: "json" }).$type<{ location: string; severity: "error" | "fixed"; message: string }[]>(),
   pdfPath: text("pdf_path"),
   docxPath: text("docx_path"),
   fileName: text("file_name"),
@@ -174,6 +175,8 @@ export const coverLetters = sqliteTable("cover_letters", {
   content: text("content", { mode: "json" }).$type<CoverLetter>().notNull(),
   audit: text("audit", { mode: "json" }).$type<AuditReport>(),
   auditStatus: text("audit_status").$type<"pending" | "pass" | "flagged" | "accepted">().notNull().default("pending"),
+  /** Structured deterministic issues: errors vs fixed are stored separately (PR 6 / PI-07). */
+  structuralErrors: text("structural_errors", { mode: "json" }).$type<{ location: string; severity: "error" | "fixed"; message: string }[]>(),
   pdfPath: text("pdf_path"),
   fileName: text("file_name"),
   model: text("model"),

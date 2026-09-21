@@ -2,8 +2,19 @@
  * Common screening questions offered during onboarding. Answering these once removes most
  * first-time pauses. Keys must match questionKey() normalization of typical labels; the
  * answer planner also lets the model map differently worded questions onto these.
+ *
+ * Lives in @prowl/shared so core/interview and the web QA page can use it without depending
+ * on browser-bound packages (@prowl/applier / @prowl/browser).
  */
-export const COMMON_QUESTIONS: { key: string; text: string; type: "text" | "select" | "boolean"; options?: string[]; help?: string }[] = [
+export type CommonQuestion = {
+  key: string;
+  text: string;
+  type: "text" | "select" | "boolean";
+  options?: string[];
+  help?: string;
+};
+
+export const COMMON_QUESTIONS: CommonQuestion[] = [
   { key: "are you legally authorized to work in the united states", text: "Are you legally authorized to work in the United States?", type: "boolean" },
   { key: "will you now or in the future require sponsorship for employment visa status", text: "Will you now or in the future require visa sponsorship?", type: "boolean" },
   { key: "are you at least 18 years of age", text: "Are you at least 18 years old?", type: "boolean" },

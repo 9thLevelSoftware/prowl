@@ -12,3 +12,6 @@ test-results/
 playwright-report/
 data-demo/
 *.tsbuildinfo
+
+exec-summary-*.md
+.mimocode/

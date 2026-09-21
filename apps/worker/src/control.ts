@@ -66,13 +66,34 @@ export function isAllowedControlOrigin(origin: string | string[] | undefined): b
 
 export type ControlPostCheck = { ok: true } | { ok: false; error: string };
 
+/**
+ * Optional shared secret (PR 10). When `PROWL_WORKER_TOKEN` is set (bootstrap generates it
+ * into `.env`), control POSTs must send the same value in `X-Prowl-Worker-Token`.
+ * Empty/unset keeps the API open to loopback callers that already pass Origin/Host checks.
+ */
+export function isAllowedWorkerToken(
+  token: string | string[] | undefined,
+  expected: string | undefined = process.env.PROWL_WORKER_TOKEN,
+): boolean {
+  const exp = (expected ?? "").trim();
+  if (!exp) return true;
+  const got = (Array.isArray(token) ? token[0] : token)?.trim();
+  return !!got && got === exp;
+}
+
 /** CSRF/rebinding gate for control-API POSTs. */
 export function checkControlPost(
-  req: { origin?: string | string[] | undefined; host?: string | string[] | undefined },
+  req: {
+    origin?: string | string[] | undefined;
+    host?: string | string[] | undefined;
+    token?: string | string[] | undefined;
+  },
   workerPort = WORKER_PORT,
+  workerToken: string | undefined = process.env.PROWL_WORKER_TOKEN,
 ): ControlPostCheck {
   if (!isAllowedControlHost(req.host, workerPort)) return { ok: false, error: "forbidden host" };
   if (!isAllowedControlOrigin(req.origin)) return { ok: false, error: "forbidden origin" };
+  if (!isAllowedWorkerToken(req.token, workerToken)) return { ok: false, error: "forbidden token" };
   return { ok: true };
 }
 

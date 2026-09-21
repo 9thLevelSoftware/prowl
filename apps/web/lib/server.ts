@@ -19,7 +19,10 @@ export function db(): Db {
 export const USER = LOCAL_USER_ID;
 
 export async function worker<T = unknown>(pathname: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${WORKER_URL}${pathname}`, { ...init, cache: "no-store", signal: AbortSignal.timeout(60_000) });
+  const headers = new Headers(init?.headers);
+  const token = process.env.PROWL_WORKER_TOKEN?.trim();
+  if (token) headers.set("x-prowl-worker-token", token);
+  const res = await fetch(`${WORKER_URL}${pathname}`, { ...init, headers, cache: "no-store", signal: AbortSignal.timeout(60_000) });
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw new Error(body.error ?? `Worker returned ${res.status}`);
   return body;
@@ -29,6 +32,11 @@ export function workerOnline(): { online: boolean; lastBeatAt: string | null; cu
   const hb = latestHeartbeat(db());
   const online = !!hb && Date.now() - new Date(hb.lastBeatAt).getTime() < 20_000;
   return { online, lastBeatAt: hb?.lastBeatAt ?? null, currentTask: hb?.currentTask ?? null };
+}
+
+/** After wipeLocalFiles() unlinks the SQLite file, force the next db() call to re-migrate. */
+export function noteDbWiped(): void {
+  migrated = false;
 }
 
 export function navCounts() {

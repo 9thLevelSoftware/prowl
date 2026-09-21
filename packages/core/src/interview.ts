@@ -13,8 +13,7 @@ import {
   type InterviewMessage,
 } from "@prowl/db";
 import type { LlmClient } from "@prowl/llm";
-import { COMMON_QUESTIONS } from "@prowl/applier/qa-seed";
-import { LOCAL_USER_ID, Preferences, RemotePolicy, Seniority, normalizeText, usableKeywords, type ProfileData } from "@prowl/shared";
+import { COMMON_QUESTIONS, LOCAL_USER_ID, Preferences, RemotePolicy, Seniority, normalizeText, usableKeywords, type ProfileData } from "@prowl/shared";
 import { buildFacts, factsToPrompt, yearsOfExperience } from "./profile";
 
 /* ================================== Topics ================================= */

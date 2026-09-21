@@ -164,7 +164,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === "POST") {
-      const gate = checkControlPost({ origin, host: req.headers.host });
+      const gate = checkControlPost({
+        origin,
+        host: req.headers.host,
+        token: headerValue(req.headers["x-prowl-worker-token"]),
+      });
       if (!gate.ok) return json(res, 403, { error: gate.error }, origin);
 
       if (url.pathname === "/browser/login") {

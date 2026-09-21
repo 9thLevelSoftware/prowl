@@ -118,15 +118,71 @@ export function validateTailored(profile: ProfileData, facts: ProfileFact[], t: 
   return { resume, issues, errors: issues.filter((i) => i.severity === "error") };
 }
 
+/**
+ * Cover letters are truth-gated like resumes (D-06 / I12): empty `factIds` is an error,
+ * and the number corpus is the cited facts only — never a silent fallback to the whole profile.
+ */
 export function validateCoverLetter(facts: ProfileFact[], c: CoverLetter): StructuralIssue[] {
   const factById = new Map(facts.map((f) => [f.id, f]));
   const issues: StructuralIssue[] = [];
   c.paragraphs.forEach((p, i) => {
+    const location = `cover:${i}`;
+    if (!p.factIds.length) {
+      issues.push({ location, severity: "error", message: "Claim cites no profile facts" });
+    }
     const invalid = p.factIds.filter((id) => !factById.has(id));
-    if (invalid.length) issues.push({ location: `cover:${i}`, severity: "error", message: `Cites unknown fact ids: ${invalid.join(", ")}` });
-    const sources = p.factIds.filter((id) => factById.has(id)).map((id) => factById.get(id)!.text);
-    const bad = unsupportedNumbers(p.text, sources.length ? sources : facts.map((f) => f.text));
-    if (bad.length) issues.push({ location: `cover:${i}`, severity: "error", message: `Numbers not found in cited facts: ${bad.join(", ")}` });
+    if (invalid.length) {
+      issues.push({ location, severity: "error", message: `Cites unknown fact ids: ${invalid.join(", ")}` });
+    }
+    const valid = p.factIds.filter((id) => factById.has(id));
+    if (valid.length) {
+      const sources = valid.map((id) => factById.get(id)!.text);
+      const bad = unsupportedNumbers(p.text, sources);
+      if (bad.length) {
+        issues.push({ location, severity: "error", message: `Numbers not found in cited facts: ${bad.join(", ")}` });
+      }
+    }
   });
   return issues;
+}
+
+/** Deterministic residual errors for resume + optional cover — used by approve and review UX. */
+export function residualValidateErrors(profile: ProfileData, facts: ProfileFact[], resume: TailoredResume, cover?: CoverLetter): string[] {
+  const resumeErrors = validateTailored(profile, facts, resume).errors.map((e) => `resume ${e.location}: ${e.message}`);
+  const coverErrors = !cover
+    ? []
+    : validateCoverLetter(facts, cover)
+        .filter((i) => i.severity === "error")
+        .map((i) => `cover ${i.location}: ${i.message}`);
+  return [...resumeErrors, ...coverErrors];
+}
+
+/** Structured form of `StructuralIssue` for JSON storage (separates errors from fixed). */
+export type StoredStructuralIssue = { location: string; severity: "error" | "fixed"; message: string };
+
+export function toStoredStructuralIssues(issues: StructuralIssue[] | null | undefined): StoredStructuralIssue[] {
+  return (issues ?? []).map((i) => ({ location: i.location, severity: i.severity, message: i.message }));
+}
+
+/** Partition stored structural issues. Legacy plain strings are treated as fixed/display notes. */
+export function partitionStoredIssues(raw: unknown): { errors: StoredStructuralIssue[]; fixed: StoredStructuralIssue[] } {
+  const items: StoredStructuralIssue[] = [];
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === "string") {
+        items.push({ location: "", severity: "fixed", message: item });
+      } else if (item && typeof item === "object" && "message" in item) {
+        const o = item as { location?: unknown; severity?: unknown; message: unknown };
+        items.push({
+          location: typeof o.location === "string" ? o.location : "",
+          severity: o.severity === "error" ? "error" : "fixed",
+          message: String(o.message),
+        });
+      }
+    }
+  }
+  return {
+    errors: items.filter((i) => i.severity === "error"),
+    fixed: items.filter((i) => i.severity === "fixed"),
+  };
 }

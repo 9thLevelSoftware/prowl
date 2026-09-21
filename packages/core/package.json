@@ -17,8 +17,7 @@
     "@prowl/documents": "workspace:*",
     "@huggingface/transformers": "^3.7.0",
     "zod": "^4.1.0",
-    "drizzle-orm": "^0.44.0",
-    "@prowl/applier": "workspace:*"
+    "drizzle-orm": "^0.44.0"
   },
   "devDependencies": {}
 }

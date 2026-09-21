@@ -1,0 +1,1 @@
+ALTER TABLE `cover_letters` ADD `structural_errors` text;

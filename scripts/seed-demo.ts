@@ -19,7 +19,7 @@ import {
   eq,
 } from "@prowl/db";
 import { ProfileData, type JobRequirements, type TailoredResume, type CoverLetter } from "@prowl/shared";
-import { buildFacts, scoreJob, validateTailored, measure, jobDedupKey } from "@prowl/core";
+import { buildFacts, scoreJob, validateTailored, validateCoverLetter, toStoredStructuralIssues, measure, jobDedupKey } from "@prowl/core";
 import { renderCoverLetterFiles, renderResumeFiles, resolveBaseline, resolveCoverLetter, resolveTailored, closeRenderer } from "@prowl/documents";
 
 const db = getDb();
@@ -350,7 +350,7 @@ for (const j of JOBS) {
       ...metrics,
       audit,
       auditStatus: audit.overall,
-      structuralErrors: t.issues.map((i) => `${i.location}: ${i.message}`),
+      structuralErrors: toStoredStructuralIssues(t.issues),
       pdfPath: files.pdfPath,
       docxPath: files.docxPath,
       fileName: files.fileName,
@@ -364,12 +364,13 @@ for (const j of JOBS) {
     paragraphs: [
       { text: `I'm applying for the ${job.title} role at ${job.company}. For the last several years I've built and operated a TypeScript payments API that handles 2M requests per day, so the problems in this posting are ones I work on daily.`, factIds: ["W1", "W1.1"] },
       { text: "At Paylane I cut p95 checkout latency by 40% by moving fraud-scoring hot paths to Go, and led the migration of 14 services to Kubernetes without customer-facing downtime. Earlier, at ShopCo, I added idempotency keys to the refunds API and eliminated duplicate refunds.", factIds: ["W1.2", "W1.3", "W2.3"] },
-      { text: "I'd welcome the chance to talk about how that experience fits your team's roadmap.", factIds: [] },
+      { text: "I'd welcome the chance to talk about how that experience fits your team's roadmap.", factIds: ["S"] },
     ],
     closing: "Best regards,",
     signature: "Jordan Rivera",
   };
   const clFiles = await renderCoverLetterFiles(resolveCoverLetter(profileData, letter, job), app.id);
+  const coverIssues = validateCoverLetter(buildFacts(profileData), letter);
   const cl = db
     .insert(s.coverLetters)
     .values({
@@ -378,6 +379,7 @@ for (const j of JOBS) {
       content: letter,
       audit: { items: letter.paragraphs.map((p, i) => ({ location: `cover:${i}`, claim: p.text, verdict: "entailed" as const, offendingSpan: "", explanation: "" })), overall: "pass" },
       auditStatus: "pass",
+      structuralErrors: toStoredStructuralIssues(coverIssues),
       pdfPath: clFiles.pdfPath,
       fileName: clFiles.fileName,
       model: "demo",

@@ -13,7 +13,7 @@ import {
   transitionApplication,
 } from "@prowl/db";
 import { getLlm } from "@prowl/llm";
-import { Preferences, OutcomeStatus, TailoredResumeOut, type CoverLetter } from "@prowl/shared";
+import { Preferences, OutcomeStatus, TailoredResumeOut, CoverLetterOut, type CoverLetter } from "@prowl/shared";
 import {
   acceptAuditFlags,
   approveApplication,
@@ -21,7 +21,9 @@ import {
   coverLetterClaims,
   measure,
   queueTailoring,
+  residualValidateErrors,
   resumeClaims,
+  toStoredStructuralIssues,
   validateCoverLetter,
   validateTailored,
 } from "@prowl/core";
@@ -162,13 +164,14 @@ export async function saveTailoredEdits(applicationId: string, json: string): Pr
     const audit = await auditClaims(llm, facts, resumeClaims(profile.data, v.resume), v.issues, { jobId: job.id, applicationId, task: "audit_resume_edit" });
     const metrics = job.requirements ? await measure(profile.data, v.resume, { ...job, requirements: job.requirements }) : null;
     const files = await renderResumeFiles(resolveTailored(profile.data, v.resume), { kind: "tailored", key: applicationId, company: job.company });
+    const residual = residualValidateErrors(profile.data, facts, v.resume);
     db()
       .update(s.tailoredResumes)
       .set({
         content: v.resume,
         audit,
         auditStatus: audit.overall,
-        structuralErrors: v.issues.map((i) => `${i.location}: ${i.message}`),
+        structuralErrors: toStoredStructuralIssues(v.issues),
         pdfPath: files.pdfPath,
         docxPath: files.docxPath,
         ...(metrics ?? {}),
@@ -176,7 +179,12 @@ export async function saveTailoredEdits(applicationId: string, json: string): Pr
       .where(eq(s.tailoredResumes.id, tr.id))
       .run();
     logApplicationEvent(db(), applicationId, "review:edited_resume", `Resume edited by user; audit ${audit.overall}`);
-    return done(`Saved and re-checked: ${audit.overall === "pass" ? "no truthfulness flags" : `${audit.items.filter((i) => i.verdict !== "entailed").length} flag(s)`}`);
+    const flags = audit.items.filter((i) => i.verdict !== "entailed").length;
+    return done(
+      residual.length
+        ? `Saved with ${residual.length} validation error(s) that still block approval: ${residual.join("; ")}`
+        : `Saved and re-checked: ${audit.overall === "pass" ? "no truthfulness flags" : `${flags} flag(s)`}`,
+    );
   } catch (err) {
     return fail(err);
   }
@@ -191,13 +199,19 @@ export async function saveCoverLetterEdits(applicationId: string, json: string):
     const job = db().select().from(s.jobs).where(eq(s.jobs.id, app.jobId)).get()!;
     const profile = getActiveProfile(db(), USER)!;
     const facts = getProfileFacts(db(), profile.id);
-    const letter = JSON.parse(json) as CoverLetter;
+    // Schema parse before validate/audit/render — parity with saveTailoredEdits + TailoredResumeOut.
+    const letter = CoverLetterOut.parse(JSON.parse(json));
     const issues = validateCoverLetter(facts, letter);
     const audit = await auditClaims(getLlm(db()), facts, coverLetterClaims(letter), issues, { jobId: job.id, applicationId, task: "audit_cover_edit" });
     const files = await renderCoverLetterFiles(resolveCoverLetter(profile.data, letter, job), applicationId);
-    db().update(s.coverLetters).set({ content: letter, audit, auditStatus: audit.overall, pdfPath: files.pdfPath }).where(eq(s.coverLetters.id, cl.id)).run();
+    db()
+      .update(s.coverLetters)
+      .set({ content: letter, audit, auditStatus: audit.overall, structuralErrors: toStoredStructuralIssues(issues), pdfPath: files.pdfPath })
+      .where(eq(s.coverLetters.id, cl.id))
+      .run();
     logApplicationEvent(db(), applicationId, "review:edited_cover", `Cover letter edited by user; audit ${audit.overall}`);
-    return done(`Saved and re-checked: ${audit.overall}`);
+    const residual = issues.filter((i) => i.severity === "error").map((i) => `cover ${i.location}: ${i.message}`);
+    return done(residual.length ? `Saved with ${residual.length} validation error(s) that still block approval: ${residual.join("; ")}` : `Saved and re-checked: ${audit.overall}`);
   } catch (err) {
     return fail(err);
   }

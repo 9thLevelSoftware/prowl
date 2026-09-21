@@ -1,5 +1,5 @@
 import { desc, eq, schema as s } from "@prowl/db";
-import { COMMON_QUESTIONS } from "@prowl/applier/qa-seed";
+import { COMMON_QUESTIONS } from "@prowl/shared";
 import { PageHeader } from "@/components/ui";
 import { db, USER } from "@/lib/server";
 import { CommonQuestions, SavedAnswers } from "./qa-form";

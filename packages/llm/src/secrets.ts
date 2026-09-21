@@ -9,7 +9,11 @@ const log = logger("secrets");
  *
  * Windows Credential Manager limits entries to 1,280 characters, and OAuth tokens are longer, so
  * secrets are not stored in the keychain directly. Instead a random 256-bit master key lives in the
- * OS keychain, and secrets are AES-256-GCM encrypted in data/secrets.json. If the keychain is
+ * OS keychain **outside the data directory** (service `prowl`, account `master-key`; Windows
+ * Credential Manager / macOS login keychain / Linux Secret Service). Settings → Delete all data
+ * wipes `PROWL_DATA_DIR` but does **not** remove that keychain entry — delete it yourself in the
+ * OS credential UI if you want the key gone too.
+ * Secrets themselves are AES-256-GCM encrypted in data/secrets.json. If the keychain is
  * unavailable the master key is kept in data/secrets.key and `keyStorage()` reports "file".
  */
 
@@ -117,8 +121,13 @@ export function maskKey(key: string): string {
   return `${k.slice(0, Math.min(4, k.indexOf("-") > 0 && k.indexOf("-") < 6 ? k.indexOf("-") + 1 : 3))}…${k.slice(-4)}`;
 }
 
-/** Test hook: forget the cached master key so a changed env/file is re-read. */
-export function _resetSecretsForTests(): void {
+/** Forget the cached master key (local data wipe, or a changed env/file). */
+export function resetSecretsCache(): void {
   masterKey = undefined;
   storage = undefined;
+}
+
+/** Test hook: forget the cached master key so a changed env/file is re-read. */
+export function _resetSecretsForTests(): void {
+  resetSecretsCache();
 }

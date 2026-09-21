@@ -6,7 +6,7 @@
 - **Worker** (`apps/worker`). Polls the `queue_tasks` table in two lanes. **Executable authority** (`apps/worker/src/index.ts`): `BROWSER_TYPES = ["apply"]` and `LLM_TYPES = ["discover_all", "discover_source", "process_job", "tailor", "build_sources"]`.
   - Browser lane (concurrency 1): **applications only** (`apply`).
   - LLM lane (concurrency 2): discovery, matching, tailoring, source building — including LinkedIn/Indeed discovery (`discover_source`). Those adapters take `withBrowserLock` (`@prowl/browser`) so they serialize with apply on the shared Chrome profile; they are **not** browser-lane queue types.
-  - A local control API on 127.0.0.1:3031 exposes `GET /health`, `GET /events`, `POST /browser/login`, `POST /browser/close`, `POST /llm/ping`, and `POST /schedule/reload`. Web proxies events at `/api/events`.
+  - A local control API on 127.0.0.1:3031 exposes `GET /health`, `GET /events`, `POST /browser/login`, `POST /browser/close`, `POST /llm/ping`, and `POST /schedule/reload`. Web proxies events at `/api/events`. Control POSTs pass Origin/Host checks (PR 3); when `PROWL_WORKER_TOKEN` is set (bootstrap generates it into `.env`), web also sends `X-Prowl-Worker-Token` and the worker rejects POSTs that omit or mismatch it (PR 10).
 
 Both processes open the same SQLite file in WAL mode with a busy timeout. The queue claims tasks with an `UPDATE … WHERE id = (SELECT …)` in an immediate transaction, so a task cannot be claimed twice. Queue tasks left `running` by a crashed worker are recovered at startup (`recoverStaleTasks`). Interrupted **applications** follow the recovery contract below — they are not silently re-submitted.
 
@@ -107,7 +107,7 @@ Only Greenhouse, Lever, and Ashby submit automatically. Other sites go to Needs 
   - Gemini uses the user's own Desktop OAuth client on a random loopback port.
   - A connection is created only after sign-in succeeds.
   - Access tokens refresh 2 minutes before expiry and once on a 401. Refreshes are serialized across the web and worker processes with a DB lock (`refresh_lock_until`), because refresh tokens rotate.
-- **Secrets** (`secrets.ts`): Windows Credential Manager caps entries at 1,280 characters, which is too short for OAuth tokens. So one random 256-bit master key is stored in the OS keychain, and secrets are AES-256-GCM encrypted in `data/secrets.json`. Without a keychain, the master key is kept in `data/secrets.key` and Settings shows a warning.
+- **Secrets** (`secrets.ts`): Windows Credential Manager caps entries at 1,280 characters, which is too short for OAuth tokens. So one random 256-bit master key is stored in the OS keychain **outside the data directory** (service `prowl`, account `master-key` — Windows Credential Manager / macOS login keychain / Linux Secret Service), and secrets are AES-256-GCM encrypted in `data/secrets.json`. Without a keychain, the master key is kept in `data/secrets.key` and Settings shows a warning. **Settings → Delete all data** wipes the data dir (SQLite + wal/shm, secrets.key, secrets.json, documents, evidence, browser profile, embedding model cache) but does **not** remove the OS keychain entry — clear it yourself in the OS credential UI if you want the key gone.
 - **Legacy:** `.env` variables create a read-only "From .env" connection only when no connection exists and credentials are set.
 - A semaphore caps concurrency per connection. Every call is recorded in `llm_calls` with the model and effort, tokens, duration, errors, and estimated cost from catalog prices. Cost is not tracked for ChatGPT sign-in.
 
