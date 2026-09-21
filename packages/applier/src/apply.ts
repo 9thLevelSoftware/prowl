@@ -20,6 +20,20 @@ export interface EvidenceField {
   source: "profile" | "qa_bank" | "file" | "default" | "llm_draft" | "user";
 }
 
+/** Structured apply-path gate outcomes recorded on evidence. */
+export type EvidenceGateCode = "blocked:empty_required" | "blocked:vision_failed" | "blocked:fill_failed" | "override_accepted";
+
+export interface EvidenceGate {
+  code: EvidenceGateCode;
+  /** Field labels involved (empty_required / fill_failed). */
+  fields?: string[];
+  /** Question keys for accepted answer overrides. */
+  keys?: string[];
+  /** Extra detail (vision error message, blocked codes when override accepted). */
+  detail?: string;
+  blocks?: EvidenceGateCode[];
+}
+
 export type ApplyOutcome =
   | { kind: "submitted"; confirmationText: string; evidence: Evidence }
   | { kind: "dry_run_complete"; evidence: Evidence }
@@ -33,6 +47,8 @@ export interface Evidence {
   resumeSha256: string;
   coverLetterSha256: string | null;
   log: string[];
+  /** Fail-closed gate markers: blocked:empty_required | blocked:vision_failed | override accepted. */
+  gates: EvidenceGate[];
 }
 
 export interface ApplyInput {
@@ -47,6 +63,12 @@ export interface ApplyInput {
   visionCheck: boolean;
   /** Unknown ATS forms always stop before submit so a human can look. */
   allowGenericSubmit: boolean;
+  /**
+   * Explicit user decision to proceed on a real submit even when safety gates
+   * (empty required fields, vision-check failure/problems) would otherwise block.
+   * Evidence records `override accepted` when this is used.
+   */
+  overrideSafetyBlocks?: boolean;
 }
 
 const sha256 = (p: string) => crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
@@ -63,10 +85,15 @@ const VisionOut = z.object({
   problems: z.array(z.object({ field: z.string(), problem: z.string() })),
 });
 
-async function visionReview(llm: LlmClient, page: Page, applicationId: string): Promise<z.infer<typeof VisionOut> | null> {
+type VisionResult =
+  | { ok: true; problems: string[] }
+  | { ok: false; error: string };
+
+/** Vision form check. Failures are returned explicitly — callers must fail closed on real submit. */
+async function visionReview(llm: LlmClient, page: Page, applicationId: string): Promise<VisionResult> {
   try {
     const buf = await page.screenshot({ fullPage: true, type: "jpeg", quality: 60 });
-    return await llm.object({ task: "vision_form_check", tier: "fast", applicationId, maxOutputTokens: 2000 }, VisionOut, {
+    const review = await llm.object({ task: "vision_form_check", tier: "fast", applicationId, maxOutputTokens: 2000 }, VisionOut, {
       messages: [
         {
           role: "user",
@@ -80,10 +107,30 @@ async function visionReview(llm: LlmClient, page: Page, applicationId: string): 
         },
       ],
     });
+    const problems = review.looksComplete ? [] : review.problems.map((p) => `${p.field}: ${p.problem}`);
+    return { ok: true, problems };
   } catch (err) {
-    log.warn(`vision check skipped: ${(err as Error).message}`);
-    return null;
+    return { ok: false, error: (err as Error).message };
   }
+}
+
+/**
+ * Required fields that are still empty after fill.
+ * Combobox/radio DOM values are not always re-read reliably after custom widgets fill,
+ * so a matching planned value/file counts as filled unless fill reported a failure for it.
+ */
+function requiredStillEmpty(questions: FormQuestion[], plans: PlannedAnswer[], fillFailures: string[]): FormQuestion[] {
+  const byHandle = new Map(plans.map((p) => [p.handle, p]));
+  const byLabel = new Map(plans.map((p) => [p.label, p]));
+  return questions.filter((q) => {
+    if (!q.required || q.type === "file") return false;
+    if (q.currentValue) return false;
+    const p = byHandle.get(q.handle) ?? byLabel.get(q.label);
+    const planned = !!(p && (p.value || p.filePath));
+    if (!planned) return true;
+    const label = q.label || q.handle;
+    return fillFailures.some((f) => f.startsWith(`${label}:`) || f.startsWith(`${q.handle}:`));
+  });
 }
 
 export async function applyOnPage(page: Page, llm: LlmClient | null, input: ApplyInput): Promise<ApplyOutcome> {
@@ -95,6 +142,7 @@ export async function applyOnPage(page: Page, llm: LlmClient | null, input: Appl
     resumeSha256: sha256(input.answers.resumePath),
     coverLetterSha256: input.answers.coverLetterPath ? sha256(input.answers.coverLetterPath) : null,
     log: [],
+    gates: [],
   };
   const note = (m: string) => {
     evidence.log.push(`${new Date().toISOString()} ${m}`);
@@ -127,12 +175,14 @@ export async function applyOnPage(page: Page, llm: LlmClient | null, input: Appl
   note(`Found ${questions.length} questions`);
 
   const plans = await planAnswers(llm, questions, input.answers, { applicationId: input.applicationId });
+  const appliedOverrideKeys: string[] = [];
   for (const p of plans) {
     const override = input.overrides[p.questionKey];
     if (override !== undefined) {
-      p.value = p.options.length ? override : override;
+      p.value = override;
       p.source = "user";
       p.needsUser = false;
+      appliedOverrideKeys.push(p.questionKey);
     }
   }
 
@@ -168,7 +218,10 @@ export async function applyOnPage(page: Page, llm: LlmClient | null, input: Appl
     const more = await planAnswers(llm, newQuestions, input.answers, { applicationId: input.applicationId });
     for (const p of more) {
       const override = input.overrides[p.questionKey];
-      if (override !== undefined) Object.assign(p, { value: override, source: "user", needsUser: false });
+      if (override !== undefined) {
+        Object.assign(p, { value: override, source: "user", needsUser: false });
+        appliedOverrideKeys.push(p.questionKey);
+      }
     }
     const moreBlocking = more.filter((p) => p.needsUser);
     plans.push(...more);
@@ -187,30 +240,91 @@ export async function applyOnPage(page: Page, llm: LlmClient | null, input: Appl
     }
   }
 
+  if (appliedOverrideKeys.length) {
+    const keys = [...new Set(appliedOverrideKeys)];
+    note(`override accepted — ${keys.join(", ")}`);
+    evidence.gates.push({ code: "override_accepted", keys });
+  }
+
   const finalQs = await extractQuestions(page);
-  const emptyRequired = finalQs.filter((q) => q.required && !q.currentValue && q.type !== "file" && q.type !== "combobox");
-  if (failures.length || emptyRequired.length) {
-    note(`Fill problems: ${[...failures, ...emptyRequired.map((q) => `${q.label}: still empty`)].join("; ")}`);
+  const emptyRequired = requiredStillEmpty(finalQs.length ? mergeCurrent(questions, finalQs) : questions, plans, failures);
+  const emptyLabels = emptyRequired.map((q) => q.label || q.handle);
+  if (emptyLabels.length) {
+    note(`blocked:empty_required — ${emptyLabels.slice(0, 8).join("; ")}`);
+    evidence.gates.push({ code: "blocked:empty_required", fields: emptyLabels });
+  }
+  if (failures.length) {
+    note(`Fill problems: ${failures.join("; ")}`);
+    evidence.gates.push({ code: "blocked:fill_failed", fields: failures.slice(0, 12) });
   }
   evidence.fields = toEvidence(finalQs.length ? mergeCurrent(questions, finalQs) : questions, plans);
 
+  // Vision check: failures are first-class; dry-run may report them in evidence, real submit fails closed.
+  let visionError: string | null = null;
+  let visionProblems: string[] = [];
   if (input.visionCheck && llm) {
     const review = await visionReview(llm, page, input.applicationId);
-    if (review && !review.looksComplete && review.problems.length) {
-      note(`Visual check found: ${review.problems.map((p) => `${p.field}: ${p.problem}`).join("; ")}`);
-      failures.push(...review.problems.map((p) => `${p.field}: ${p.problem}`));
+    if (!review.ok) {
+      visionError = review.error;
+      log.warn(`vision check failed: ${review.error}`);
+      note(`blocked:vision_failed — ${review.error}`);
+      evidence.gates.push({ code: "blocked:vision_failed", detail: review.error });
+    } else if (review.problems.length) {
+      visionProblems = review.problems;
+      note(`Visual check found: ${visionProblems.join("; ")}`);
     }
   }
   await shot(page, input.applicationId, "before-submit", evidence);
 
-  if (failures.length) {
-    return { kind: "needs_input", reason: `Some fields could not be filled reliably: ${failures.slice(0, 6).join("; ")}. Check the open browser window.`, pending: [], evidence, keepPageOpen: true };
-  }
+  const blockedByEmpty = emptyLabels.length > 0;
+  const blockedByVision = visionError !== null || visionProblems.length > 0;
+  const blockedByFill = failures.length > 0;
+  const safetyBlocked = blockedByEmpty || blockedByVision || blockedByFill;
+  const overrideSafety = input.overrideSafetyBlocks === true;
 
   if (input.dryRun) {
+    // Dry-run must not imply a clean form when required fields are empty or fill failed.
+    if (blockedByEmpty || blockedByFill) {
+      const parts = [...emptyLabels, ...failures].slice(0, 6);
+      return {
+        kind: "needs_input",
+        reason: `Dry run stopped: the form is not complete (${parts.join("; ")}). Review these fields before submitting for real.`,
+        pending: [],
+        evidence,
+        keepPageOpen: true,
+      };
+    }
+    // Vision-only issues on dry-run: complete, but evidence already records blocked:vision_failed / problems.
     note("Dry run: stopping before submit");
     return { kind: "dry_run_complete", evidence };
   }
+
+  if (safetyBlocked && !overrideSafety) {
+    const reasons: string[] = [];
+    if (blockedByEmpty) reasons.push(`empty required fields: ${emptyLabels.slice(0, 6).join("; ")}`);
+    if (blockedByVision) {
+      reasons.push(visionError ? `vision check failed: ${visionError}` : `vision check problems: ${visionProblems.slice(0, 4).join("; ")}`);
+    }
+    if (blockedByFill) reasons.push(`fields could not be filled: ${failures.slice(0, 6).join("; ")}`);
+    return {
+      kind: "needs_input",
+      reason: `Blocked before submit — ${reasons.join("; ")}. Check the open browser window.`,
+      pending: [],
+      evidence,
+      keepPageOpen: true,
+    };
+  }
+
+  if (safetyBlocked && overrideSafety) {
+    const blocks: EvidenceGateCode[] = [
+      ...(blockedByEmpty ? (["blocked:empty_required"] as const) : []),
+      ...(blockedByVision ? (["blocked:vision_failed"] as const) : []),
+      ...(blockedByFill ? (["blocked:fill_failed"] as const) : []),
+    ];
+    note(`override accepted — proceeding despite safety blocks (${blocks.join(", ")})`);
+    evidence.gates.push({ code: "override_accepted", blocks, detail: "safety blocks overridden for real submit" });
+  }
+
   if (hooks.type === "other" && !input.allowGenericSubmit) {
     return { kind: "needs_input", reason: "This form is on an unrecognized site. Review the filled form in the browser and submit it yourself, then mark it submitted.", pending: [], evidence, keepPageOpen: true };
   }

@@ -106,7 +106,9 @@ const EXTRACT_SCRIPT = String.raw`(() => {
       if (seenGroups.has(key)) continue;
       seenGroups.add(key);
       const members = Array.from(document.querySelectorAll('input[type=' + type + '][name="' + CSS.escape(el.name) + '"]'));
-      const handle = "q" + n++;
+      // Reuse a handle already stamped on the group so re-extract after fill does not mint duplicates.
+      const existing = members.map((m) => m.getAttribute("data-jh-q")).find(Boolean);
+      const handle = existing || "q" + n++;
       members.forEach((m) => m.setAttribute("data-jh-q", handle));
       const label = labelFor(el, members);
       out.push({

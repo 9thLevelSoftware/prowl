@@ -54,6 +54,21 @@ const GREENHOUSE_LIKE = `<!doctype html><html><body>
   });
 </script></body></html>`;
 
+/** Greenhouse-like form with an extra required free-text field that has no profile mapping. */
+const GREENHOUSE_GAP = GREENHOUSE_LIKE.replace(
+  `<div class="field"><label for="question_1">LinkedIn Profile</label><input id="question_1"></div>`,
+  `<div class="field"><label for="question_1">LinkedIn Profile</label><input id="question_1"></div>
+  <div class="field"><label for="custom_required">Are you willing to relocate?*</label><input id="custom_required" aria-required="true"></div>`,
+).replace(
+  `const missing = ["first_name","last_name","email","phone","resume","question_2"]`,
+  `const missing = ["first_name","last_name","email","phone","resume","question_2","custom_required"]`,
+);
+
+const CAPTCHA_PAGE = `<!doctype html><html><body>
+<h1>Verify you are human</h1>
+<iframe src="https://hcaptcha.com/challenge?sitekey=demo" title="hCaptcha challenge" style="width:320px;height:220px;border:0"></iframe>
+</body></html>`;
+
 const LEVER_LIKE = `<!doctype html><html><body>
 <form id="lever" method="post">
   <ul>
@@ -110,8 +125,10 @@ export async function startMockAts(): Promise<{ url: string; submissions: Submis
       return;
     }
     const html =
-      req.url?.startsWith("/greenhouse") ? GREENHOUSE_LIKE
+      req.url?.startsWith("/greenhouse-gap") ? GREENHOUSE_GAP
+      : req.url?.startsWith("/greenhouse") ? GREENHOUSE_LIKE
       : req.url?.startsWith("/lever") ? LEVER_LIKE
+      : req.url?.startsWith("/captcha") ? CAPTCHA_PAGE
       : req.url?.startsWith("/confirmation") ? "<h1>Thank you for applying!</h1><p>Your application has been received.</p>"
       : req.url?.startsWith("/thanks") ? "<h1>Application submitted</h1><p>Thanks for applying.</p>"
       : null;

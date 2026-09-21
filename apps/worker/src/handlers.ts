@@ -176,6 +176,16 @@ export async function handleApply(db: Db, llm: LlmClient, task: QueueTask): Prom
     .map((q) => ({ questionKey: q.questionKey, questionText: q.questionText, answer: q.answer, approved: q.approved }));
   const coverText = cl ? [cl.content.greeting, ...cl.content.paragraphs.map((p) => p.text), cl.content.closing, cl.content.signature].join("\n\n") : null;
 
+  // Vision is a safety check only when an AI connection is actually configured.
+  // Unconfigured connections must not invent a vision "failure" that blocks real submit;
+  // a configured connection that errors during the call still fails closed inside apply.ts.
+  let visionCheck = false;
+  try {
+    visionCheck = Boolean(llm?.config?.connectionId);
+  } catch {
+    visionCheck = false;
+  }
+
   let keepOpen = false;
   const outcome: ApplyOutcome = await withBrowserLock(async () => {
     const page = await newPage({ headless: prefs.headlessBrowser });
@@ -196,7 +206,7 @@ export async function handleApply(db: Db, llm: LlmClient, task: QueueTask): Prom
           coverLetterText: coverText,
         },
         overrides: {},
-        visionCheck: true,
+        visionCheck,
         allowGenericSubmit: false,
       });
       keepOpen = o.kind === "needs_input" && o.keepPageOpen && !prefs.headlessBrowser;
