@@ -10,6 +10,7 @@ import {
   getDb,
   getPreferences,
   queueStats,
+  recoverInterruptedApplies,
   recoverStaleTasks,
   runMigrations,
   schema as s,
@@ -193,10 +194,14 @@ async function main() {
   });
 
   // Safe only once this process is known to be the sole worker (checked by claiming the port above).
-  const recovered = recoverStaleTasks(db, 0);
-  if (recovered) log.warn(`Recovered ${recovered} task(s) left running by a previous worker`);
-  // Applications interrupted mid-apply go back to approved so they are retried.
-  db.update(s.applications).set({ status: "approved" }).where(eq(s.applications.status, "applying")).run();
+  const recoveredTasks = recoverStaleTasks(db, 0);
+  if (recoveredTasks) log.warn(`Recovered ${recoveredTasks} task(s) left running by a previous worker`);
+  // D-01: interrupted applies never auto-resubmit. applying → needs_input/failed via
+  // transitionApplication (events logged). Recovery ignores dryRun; re-approve required.
+  const recoveredApps = recoverInterruptedApplies(db);
+  if (recoveredApps.recovered) {
+    log.warn(`Crash recovery: ${recoveredApps.recovered} interrupted apply(ies) → needs_input/failed (re-approval required)`);
+  }
   scheduleDiscovery();
   const heartbeat = setInterval(() => beat(db, WORKER_ID, STARTED, [...running.values()].join(", ") || null), 5000);
   beat(db, WORKER_ID, STARTED, null);

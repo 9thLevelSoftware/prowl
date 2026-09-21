@@ -255,13 +255,52 @@ export function ensureApplication(db: Db, jobId: string, userId = LOCAL_USER_ID)
   if (existing) return existing;
   const job = db.select().from(s.jobs).where(eq(s.jobs.id, jobId)).get();
   if (!job) throw new Error(`Job ${jobId} not found`);
+  // D-04: fail-closed dry-run default. Only approveApplication / submit-for-real may write dryRun false.
   const app = db
     .insert(s.applications)
-    .values({ userId, jobId, atsType: job.atsType, applyUrl: job.applyUrl, status: "matched" })
+    .values({ userId, jobId, atsType: job.atsType, applyUrl: job.applyUrl, status: "matched", dryRun: true })
     .returning()
     .get();
   logApplicationEvent(db, app.id, "created", `Matched ${job.title} at ${job.company}`);
   return app;
+}
+
+/**
+ * D-01 crash recovery fail-safe. Applications left in `applying` by a crashed
+ * worker never silently re-submit: every interrupted apply (dry-run and real)
+ * moves to `needs_input` via transitionApplication, with an explicit recovery
+ * event. Recovery ignores `dryRun` for the transition choice. There is no
+ * recovery path to `approved` — re-apply only after a fresh approveApplication.
+ */
+export function recoverInterruptedApplies(db: Db): { recovered: number } {
+  const interrupted = db.select().from(s.applications).where(eq(s.applications.status, "applying")).all();
+  let recovered = 0;
+  for (const app of interrupted) {
+    const dryNote = app.dryRun ? "dry-run" : "real";
+    const message = `Crash recovery: interrupted ${dryNote} apply. Re-approval required before any re-submit.`;
+    logApplicationEvent(db, app.id, "recovery:interrupted", message, {
+      payload: { priorStatus: "applying", dryRun: app.dryRun, policy: "fail-safe; re-approve required" },
+    });
+    try {
+      transitionApplication(db, app.id, "needs_input", message, {
+        needsInputReason:
+          "Worker crashed during apply. Submit state may be unknown. Re-approve to try again (dry-run or real).",
+      });
+      recovered++;
+    } catch (err) {
+      // Fail closed if needs_input is rejected; never leave applying and never set approved.
+      try {
+        transitionApplication(db, app.id, "failed", `${message} (${(err as Error).message})`, {
+          errorText: "Interrupted apply; re-approval required",
+          needsInputReason: "Worker crashed during apply. Re-approve to try again.",
+        });
+        recovered++;
+      } catch {
+        logApplicationEvent(db, app.id, "recovery:failed", `Could not transition interrupted apply off applying: ${(err as Error).message}`);
+      }
+    }
+  }
+  return { recovered };
 }
 
 /** Count applications actually submitted (not dry runs) since local midnight. */

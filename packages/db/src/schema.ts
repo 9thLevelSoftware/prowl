@@ -193,7 +193,8 @@ export const applications = sqliteTable(
     outcomeNotes: text("outcome_notes").notNull().default(""),
     atsType: text("ats_type").$type<AtsType>().notNull().default("other"),
     applyUrl: text("apply_url").notNull().default(""),
-    dryRun: integer("dry_run", { mode: "boolean" }).notNull().default(false),
+    /** Fail-closed default: new applications are dry-run until approveApplication / submit-for-real writes false. */
+    dryRun: integer("dry_run", { mode: "boolean" }).notNull().default(true),
     approvedAt: text("approved_at"),
     submittedAt: text("submitted_at"),
     confirmationText: text("confirmation_text"),
