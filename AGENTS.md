@@ -29,14 +29,15 @@ There is no CI, pre-commit hook, Prettier, or Biome config. Trust `pnpm typechec
 ## Workspace facts agents often miss
 
 - **Packages ship TypeScript source, not build output.** `exports` point at `./src/*.ts`. Next.js lists them in `transpilePackages`. Do not look for `dist/` or run package builds.
-- **Workspace scope is `@prowl/*`** (rebranded from `@prowl/*`). Do not reintroduce `@prowl/` imports.
+- **Workspace scope is `@prowl/*`** (rebranded from `@jh/*`). Do not reintroduce `@jh/` imports.
 - **One root `.env`** serves web and worker. Next loads it from the repo root via `@next/env`. Worker uses `tsx --env-file-if-exists=../../.env`.
-- **Env prefix is `PROWL_*`** (was `PROWL_*`). Clean break: no dual-read of old names.
+- **Env prefix is `PROWL_*`** (was `JH_*`). Clean break: no dual-read of old names.
 - **Two processes share one SQLite file** (WAL + busy timeout). Mutations are Next server actions that enqueue tasks; the worker claims them from `queue_tasks`. Do not invent a second DB or API layer for local work.
 - **All runtime data lives under `PROWL_DATA_DIR`** (default `./data` at repo root): SQLite (`prowl.sqlite`), PDFs, screenshots, embedding cache, Chrome profile, encrypted secrets. Tests override this to a temp dir.
 - **Schema conventions** (`packages/db/src/schema.ts`): text UUID PKs, ISO-8601 text timestamps, JSON as text, `user_id` on every row (`"local"` for now). Keep these portable to Postgres.
-- **Application status** is a hard state machine in `packages/shared/src/states.ts`. Every status change must go through `transitionApplication` — illegal transitions throw.
-- **Worker control API** is `http://127.0.0.1:3031` (`/health`, `/events`, `/browser/login`, …). Web proxies events at `/api/events`.
+- **Application status** is a hard state machine in `packages/shared/src/states.ts`. Every status change must go through `transitionApplication` — illegal transitions throw. Crash recovery is included: interrupted applies go `applying → needs_input`/`failed` via `transitionApplication` (`recoverInterruptedApplies`); never silent re-submit.
+- **Worker control API** is `http://127.0.0.1:3031` (`GET /health`, `GET /events`, `POST /browser/login`, `POST /browser/close`, `POST /llm/ping`, `POST /schedule/reload`). Web proxies events at `/api/events`.
+- **Worker lanes** are executable in `apps/worker/src/index.ts`: `BROWSER_TYPES = ["apply"]` (browser lane, concurrency 1) and `LLM_TYPES` for discovery/match/tailor/sources (LLM lane, concurrency 2). LinkedIn/Indeed discovery is **LLM-lane** `discover_source`; it serializes with apply only via `withBrowserLock` — do not put discovery types in the browser-lane array.
 - **Second `pnpm dev` instance** (e.g. against demo data) needs `PROWL_NEXT_DIST_DIR` so Next does not clobber `.next`.
 - **PDF/DOCX rendering** launches Playwright Chromium (`packages/documents/src/render.ts`). Missing browser → run `pnpm --filter @prowl/documents exec playwright install chromium`.
 - **Browser profile** (`packages/browser`) is a persistent Chrome profile under the data dir. Only the worker may drive it (lock shared with apply + LinkedIn/Indeed discovery). Default channel is installed Chrome; tests force `PROWL_BROWSER_CHANNEL=chromium`.
@@ -44,7 +45,7 @@ There is no CI, pre-commit hook, Prettier, or Biome config. Trust `pnpm typechec
 
 ## Testing
 
-- Default suite include: `packages/*/test/**/*.test.ts` and `apps/worker/test/**/*.test.ts`. Golden files (`**/*.golden.test.ts`) are excluded from `pnpm test`.
+- Default suite include (`vitest.config.ts`): `packages/*/test/**/*.test.ts`, `apps/worker/test/**/*.test.ts`, and `apps/web/test/**/*.test.ts`. Golden files (`**/*.golden.test.ts`) are excluded from `pnpm test`.
 - Unit tests use temp `PROWL_DATA_DIR` + temp SQLite; applier/e2e tests spin a local mock ATS (`packages/applier/test/mock-ats.ts`) and headless Chromium. No credentials required for `pnpm test`.
 - Shared fixtures: `packages/core/test/fixtures.ts` (Jordan Rivera profile).
 - `packages/sources/test/live.manual.ts` is a live-network manual probe, not part of vitest.
@@ -77,4 +78,13 @@ packages/browser  Shared persistent Chrome profile (worker-only)
 packages/applier  ATS form extract/plan/fill/submit + mock-ats tests
 ```
 
-Prefer executable sources (`package.json` scripts, vitest configs, `docs/architecture.md`) over README prose if they disagree.
+## Authority when docs disagree (C7)
+
+Executable sources win. Prefer, in order:
+
+1. **Executable**: `package.json` scripts, `vitest.config.ts` / `vitest.golden.config.ts`, `packages/shared/src/states.ts`, `packages/shared/src/schemas.ts`, worker lane constants (`BROWSER_TYPES` / `LLM_TYPES` in `apps/worker/src/index.ts`), and other runtime code.
+2. **This file (AGENTS.md)** for agent operating facts — still subordinate to (1) if they conflict.
+3. **`docs/architecture.md`**: design intent and narrative, **not** executable authority. Useful for product shape; when its state diagram, lane model, or endpoint list disagrees with code, code wins.
+4. **README.md** for product/user prose; least authoritative for machine behavior.
+
+Do not treat incomplete narrative diagrams as the state machine. Do not treat architecture prose as proof of lane membership.

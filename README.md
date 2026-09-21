@@ -62,6 +62,9 @@ Legacy `.env` configuration (`PROWL_LLM_PROVIDER` plus credentials) still works 
 | `pnpm --filter @prowl/<pkg> typecheck` | Type-checks one package |
 | `pnpm seed:demo` then `pnpm dev:demo` | Loads demo data into `./data-demo` without any AI calls and runs the app against it, separate from your real data. |
 | `pnpm db:generate` | Generates a migration after changing `packages/db/src/schema.ts` |
+| `pnpm db:migrate` | Applies migrations (`pnpm dev` also migrates first) |
+| `node scripts/update-catalog.mjs` | Refreshes the bundled models.dev catalog snapshot |
+| `pnpm lint` | **Broken:** `eslint .` has no ESLint config in the repo. Trust `pnpm typecheck` + `pnpm test`. |
 
 ## Project layout
 
@@ -97,13 +100,26 @@ All data lives in `PROWL_DATA_DIR`, `./data` by default. That includes the SQLit
 
 ## Migration from Job Hunter
 
-Prowl rebrands the previous **Job Hunter** product. Identifier changes are a **clean break**:
+Prowl rebrands the previous **Job Hunter** product. Identifier changes are a **clean break** — no dual-read of old names. Current runtime identity is authoritative in `package.json`, `packages/db/src/client.ts`, `packages/llm/src/secrets.ts`, and `packages/shared/src/config.ts`.
 
-1. Update `.env`: rename every `PROWL_*` variable to `PROWL_*` (see `.env.example`).
+| Identifier | Job Hunter (old) | Prowl (current) |
+| --- | --- | --- |
+| Workspace packages | `@jh/*` | `@prowl/*` |
+| Env prefix | `JH_*` | `PROWL_*` |
+| SQLite file | `data/job-hunter.sqlite` | `data/prowl.sqlite` (override: `PROWL_DB_PATH`) |
+| OS keychain service | `job-hunter` | `prowl` |
+| Golden-test gate | `JH_GOLDEN=1` | `PROWL_GOLDEN=1` |
+| Second Next build dir | `JH_NEXT_DIST_DIR` | `PROWL_NEXT_DIST_DIR` |
+| GitHub remote | n/a | `https://github.com/9thLevelSoftware/prowl.git` (`main`) |
+
+Followable steps:
+
+1. Update root `.env`: rename every `JH_*` variable to the matching `PROWL_*` name (see `.env.example`).
 2. The data directory still defaults to `./data`, but the database file is now `prowl.sqlite`.
-   - To keep existing data: copy/rename `data/prowl.sqlite` (and `-wal`/`-shm` if present) to `data/prowl.sqlite`, or set `PROWL_DB_PATH` to the old file.
-3. OS keychain service name is now `prowl`. Previously encrypted secrets may not decrypt under the new master-key entry — re-add AI connections in Settings.
-4. Workspace packages are `@prowl/*` (not `@prowl/*`).
+   - To keep existing data: copy/rename `data/job-hunter.sqlite` (and `-wal`/`-shm` if present) to `data/prowl.sqlite`, or set `PROWL_DB_PATH` to the old file.
+3. OS keychain service name is now `prowl`. Secrets encrypted under the old `job-hunter` master-key entry may not decrypt — re-add AI connections in Settings.
+4. Workspace packages are `@prowl/*` (not `@jh/*`). Do not reintroduce `@jh/` imports.
 5. Second web instance (for example demo data): set `PROWL_NEXT_DIST_DIR`.
 6. Golden tests: `PROWL_GOLDEN=1 pnpm test:golden`.
 7. The GitHub remote is `https://github.com/9thLevelSoftware/prowl.git` (`main`). A local folder may still be named `job-hunter`; that does not affect runtime identifiers above.
+8. Residual internal symbols (for example `data-jh-q` DOM handles; `__jhLlm` / `__jhFlows` globals in llm code) are cosmetic leftovers, not public identifiers. They are not dual-read; migration does not require renaming them. (`packages/db` singleton was renamed to `__prowlDb` in docs-fidelity hygiene.)

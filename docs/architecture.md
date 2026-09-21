@@ -3,22 +3,46 @@
 ## Processes
 
 - **Web** (`apps/web`, Next.js). Server components read SQLite directly. Mutations are server actions that write to the DB and enqueue tasks. Live updates come from the worker's event stream, proxied at `/api/events`. The page refreshes on events, throttled.
-- **Worker** (`apps/worker`). Polls the `queue_tasks` table in two lanes. The browser lane runs one task at a time for applications. The LLM lane runs two at a time for discovery, matching, and tailoring. Browser-based discovery shares a lock with applications so they never drive the Chrome profile concurrently. A local control API on 127.0.0.1:3031 exposes `/health`, `/events`, `/browser/login`, `/llm/ping`, and `/schedule/reload`.
+- **Worker** (`apps/worker`). Polls the `queue_tasks` table in two lanes. **Executable authority** (`apps/worker/src/index.ts`): `BROWSER_TYPES = ["apply"]` and `LLM_TYPES = ["discover_all", "discover_source", "process_job", "tailor", "build_sources"]`.
+  - Browser lane (concurrency 1): **applications only** (`apply`).
+  - LLM lane (concurrency 2): discovery, matching, tailoring, source building — including LinkedIn/Indeed discovery (`discover_source`). Those adapters take `withBrowserLock` (`@prowl/browser`) so they serialize with apply on the shared Chrome profile; they are **not** browser-lane queue types.
+  - A local control API on 127.0.0.1:3031 exposes `GET /health`, `GET /events`, `POST /browser/login`, `POST /browser/close`, `POST /llm/ping`, and `POST /schedule/reload`. Web proxies events at `/api/events`.
 
-Both processes open the same SQLite file in WAL mode with a busy timeout. The queue claims tasks with an `UPDATE … WHERE id = (SELECT …)` in an immediate transaction, so a task cannot be claimed twice. Tasks left running by a crashed worker are recovered at startup.
+Both processes open the same SQLite file in WAL mode with a busy timeout. The queue claims tasks with an `UPDATE … WHERE id = (SELECT …)` in an immediate transaction, so a task cannot be claimed twice. Queue tasks left `running` by a crashed worker are recovered at startup (`recoverStaleTasks`). Interrupted **applications** follow the recovery contract below — they are not silently re-submitted.
 
 ## Data model
 
 See `packages/db/src/schema.ts`. Every row carries `user_id`, with `local` for now. IDs are text UUIDs, timestamps are ISO text, and JSON is stored as text. Porting to Postgres/Supabase is a dialect switch in Drizzle.
 
-Application states (`packages/shared/src/states.ts`):
+Application states are the hard machine in `packages/shared/src/states.ts` (executable authority). Statuses come from `APPLICATION_STATUSES` in `packages/shared/src/schemas.ts`. The adjacency list below is generated from `TRANSITIONS` — every edge listed is legal; anything else throws.
+
+```
+matched          → tailoring | skipped | rejected_by_user
+tailoring        → ready_for_review | failed | matched
+ready_for_review → approved | rejected_by_user | tailoring
+approved         → applying | ready_for_review | skipped
+applying         → submitted | needs_input | failed | approved
+needs_input      → approved | applying | failed | skipped | submitted
+submitted        → (terminal; no outgoing edges)
+failed           → approved | tailoring | skipped | matched
+skipped          → matched
+rejected_by_user → matched
+```
+
+Happy path sketch (not the full machine):
 
 ```
 matched → tailoring → ready_for_review → approved → applying → submitted
-                ↘ failed        ↘ rejected_by_user        ↘ needs_input ↔ approved
 ```
 
-Every transition goes through `transitionApplication`, which enforces the state machine and appends an `application_events` row.
+Notes:
+
+- **Identity transitions**: `canTransition(from, to)` is true when `from === to`. Same-status writes are legal (re-log / re-patch) and are not illegal machine moves.
+- **`skipped` / `failed` are first-class**: not dead ends. `skipped` and `rejected_by_user` can return to `matched`; `failed` can re-enter approve/tailor/skip/match.
+- **`needs_input` exits** are broader than “wait for user answer”: also `applying`, `failed`, `skipped`, and `submitted` (besides `approved`).
+- **`applying → approved`** is a legal edge for explicit user re-approve only. Crash recovery must not use it.
+- **Recovery contract (PR 2)**: worker startup calls `recoverInterruptedApplies` (`packages/db/src/repo.ts`). Interrupted applies (`status = applying`, dry-run or real) move to `needs_input` via `transitionApplication` (fallback `failed` if that edge is rejected). Recovery ignores `dryRun` for the transition choice, logs `recovery:interrupted` + `status:needs_input` (or `failed`), and never auto-re-submits. Re-apply only after a fresh `approveApplication`.
+- Every legal status change — including recovery — goes through `transitionApplication`, which enforces the state machine and appends an `application_events` row.
 
 ## Truthfulness pipeline
 

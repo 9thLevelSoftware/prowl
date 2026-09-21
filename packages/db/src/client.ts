@@ -9,7 +9,7 @@ import * as schema from "./schema";
 
 export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
-const globalForDb = globalThis as unknown as { __jhDb?: Db };
+const globalForDb = globalThis as unknown as { __prowlDb?: Db };
 
 export function dbFilePath(): string {
   return process.env.PROWL_DB_PATH ?? dataPath("prowl.sqlite");
@@ -39,8 +39,8 @@ export function openDb(file = dbFilePath()): Db {
 
 /** Process-wide singleton (survives Next.js dev hot reload). */
 export function getDb(): Db {
-  if (!globalForDb.__jhDb) globalForDb.__jhDb = openDb();
-  return globalForDb.__jhDb;
+  if (!globalForDb.__prowlDb) globalForDb.__prowlDb = openDb();
+  return globalForDb.__prowlDb;
 }
 
 export function runMigrations(db: Db = getDb()): void {
