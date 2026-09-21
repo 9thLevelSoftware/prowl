@@ -106,4 +106,4 @@ Prowl rebrands the previous **Job Hunter** product. Identifier changes are a **c
 4. Workspace packages are `@prowl/*` (not `@prowl/*`).
 5. Second web instance (for example demo data): set `PROWL_NEXT_DIST_DIR`.
 6. Golden tests: `PROWL_GOLDEN=1 pnpm test:golden`.
-7. The git remote / local folder may still be named `job-hunter` until you rename them; that does not affect runtime identifiers above.
+7. The GitHub remote is `https://github.com/9thLevelSoftware/prowl.git` (`main`). A local folder may still be named `job-hunter`; that does not affect runtime identifiers above.
