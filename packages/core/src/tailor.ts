@@ -13,6 +13,7 @@ import {
 } from "@jh/shared";
 import { resolveBaseline, resolveTailored, resumeToText } from "@jh/documents";
 import { factsToPrompt } from "./profile";
+import { coverLetterSystemPrompt, tailorSystemPrompt } from "./resume-craft";
 import { findSkill, textMentions } from "./skills";
 import { validateCoverLetter, validateTailored, type StructuralIssue } from "./validate";
 import { semanticSimilarity } from "./embed";
@@ -30,28 +31,8 @@ export interface JobContext {
 
 // The system prompt and fact ledger form a stable prefix, so providers with implicit
 // prompt caching (OpenAI, Gemini) reuse it across every job tailored against one profile.
-const TAILOR_SYSTEM = `You tailor a candidate's resume to a specific job posting. You must be both effective and strictly truthful.
-
-TRUTHFULNESS (non-negotiable):
-- Every bullet and the summary must cite the fact ids ([W1.2], [K3], ...) they are derived from, in factIds.
-- You may: reorder bullets, choose which bullets to include, sharpen verbs, tighten wording, lead with the parts most relevant to the job, merge two facts from the same role into one bullet, and describe genuine work using the posting's vocabulary when that vocabulary accurately describes what the fact says.
-- You may NOT add or change: numbers, percentages, money, team sizes, durations, tools, technologies, titles, employers, dates, degrees, certifications, scope ("led" when the fact says "contributed"), seniority, or outcomes. If a fact has no metric, the bullet has no metric.
-- The skills section may only contain skills listed as [K*] facts. When the posting spells a skill differently from the profile (profile "K8s", posting "Kubernetes"), use the posting's spelling of that same skill.
-- Never claim a skill from the posting that the facts do not support, even if it seems likely.
-- Do not list a skill the candidate has in a way that implies greater depth than the facts show.
-
-ATS OPTIMIZATION (two-layer screening: keyword filter, then semantic ranking):
-- Hard terms (tools, languages, frameworks, certifications, methodologies) that the candidate truthfully has and the posting names should appear verbatim, in the skills section and, where a cited fact supports it, inside a relevant bullet.
-- Write bullets in natural, specific language. Do not stuff keyword lists into bullets or the summary. Repeating a term many times hurts semantic ranking.
-- Put the most job-relevant bullets first in each role. Keep 3-6 bullets for recent relevant roles and 1-3 for older or less relevant roles.
-- The summary is 2-3 sentences, mirrors the role's focus, and contains no claim that the cited facts do not support.
-- The headline is under 12 words and describes the candidate truthfully (use their real title history), aligned to the target role where accurate.
-
-OUTPUT:
-- Include every work entry id from the profile in "work", in the same order. Use the exact ids given.
-- includeEducationIds: include all education ids unless one is clearly irrelevant noise.
-- includeCertifications: names exactly as listed in [C*] facts.
-- changeNotes: 3-8 short notes explaining what you emphasized and why.`;
+// Craft guidance lives in resume-craft.ts (ResumeSkills knowledge, truth-gated).
+const TAILOR_SYSTEM = tailorSystemPrompt();
 
 function profileIndex(p: ProfileData): string {
   const lines: string[] = ["WORK ENTRY IDS:"];
@@ -222,17 +203,7 @@ export async function writeCoverLetter(
   ctx: { applicationId?: string; companyNote?: string } = {},
 ): Promise<{ letter: CoverLetter; issues: StructuralIssue[] }> {
   const words = prefs.coverLetterLength === "short" ? "180-250" : "280-380";
-  const system = `You write cover letters that sound like a thoughtful human, not a template.
-Rules:
-- ${words} words across 3-4 paragraphs. Tone: ${prefs.coverLetterTone}.
-- Open with the specific role and one concrete reason the candidate fits, drawn from the facts.
-- Middle: 2-3 specific, relevant accomplishments from the facts, connected to what the posting needs.
-- Close: brief, confident, no begging, no "I believe I would be a great fit".
-- Each paragraph cites the fact ids it relies on in factIds (empty only for a paragraph with no factual claims).
-- Truthfulness rules are identical to the resume: no invented metrics, tools, scope, titles, or outcomes. Do not claim knowledge about the company beyond the posting and the candidate's note.
-- Avoid clichés: "passionate", "results-driven", "dynamic", "synergy", "I am writing to express my interest".
-- greeting: "Dear Hiring Team," unless a hiring manager is named in the posting.
-- signature: the candidate's full name.`;
+  const system = coverLetterSystemPrompt(words, prefs.coverLetterTone);
   const prompt = `CANDIDATE FACTS:\n${factsToPrompt(facts)}\n\nCandidate name: ${profile.contact.fullName}\n\nTAILORED RESUME EMPHASIS:\n${resume.changeNotes.map((n) => `- ${n}`).join("\n")}\n\n${jobBlock(job)}${
     ctx.companyNote ? `\n\nCANDIDATE'S OWN NOTE ON WHY THIS COMPANY (may be used):\n${ctx.companyNote}` : ""
   }`;
